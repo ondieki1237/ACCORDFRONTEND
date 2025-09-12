@@ -79,8 +79,18 @@ export function DashboardOverview() {
   // Fetch performance trend data for chart
   const { data: performanceData } = useQuery({
     queryKey: ["performance", dateRange, currentUser?.region],
-    queryFn: async () =>
-      apiService.getPerformanceMetrics(dateRange.startDate, dateRange.endDate, currentUser?.region || "North"),
+    queryFn: async () => {
+      const token = localStorage.getItem("accessToken");
+      const region = currentUser?.region || "North";
+      const url = `http://localhost:5000/api/dashboard/performance?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}&region=${region}`;
+      const res = await fetch(url, {
+        headers: {
+          Authorization: token ? `Bearer ${token}` : ""
+        }
+      });
+      const data = await res.json();
+      return data.success && Array.isArray(data.data) ? data.data : [];
+    },
     enabled: !!currentUser,
     staleTime: 1000 * 60 * 5,
   });

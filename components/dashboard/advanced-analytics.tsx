@@ -15,22 +15,26 @@ export default function AdvancedAnalytics() {
     })
       .then((res) => res.json())
       .then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          setData(res.data);
+        console.log("Analytics API response:", res);
+        // Pick the array you want to display, e.g. usersByRegion
+        const analyticsArray = Array.isArray(res.data.usersByRegion) ? res.data.usersByRegion : [];
+        if (res.success && analyticsArray.length > 0) {
+          setData(analyticsArray);
         } else {
-          setError("Failed to load analytics data");
+          setError("No analytics data available.");
         }
         setLoading(false);
       })
-      .catch(() => {
+      .catch((e) => {
         setError("Error fetching analytics data");
         setLoading(false);
       });
   }, []);
 
   const handleExport = () => {
+    if (!data.length) return;
     const csv = [
-      Object.keys(data[0] || {}).join(","),
+      Object.keys(data[0]).join(","),
       ...data.map(row => Object.values(row).join(","))
     ].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -49,24 +53,28 @@ export default function AdvancedAnalytics() {
     <div>
       <h2 className="text-xl font-bold mb-4">Advanced Analytics</h2>
       <Button onClick={handleExport} className="mb-4">Export CSV</Button>
-      <table className="w-full border">
-        <thead>
-          <tr className="bg-gray-200">
-            {data[0] && Object.keys(data[0]).map((key) => (
-              <th key={key} className="p-2">{key}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((row, i) => (
-            <tr key={i}>
-              {Object.values(row).map((val, j) => (
-                <td key={j} className="p-2">{val}</td>
+      {data.length > 0 ? (
+        <table className="w-full border">
+          <thead>
+            <tr className="bg-gray-200">
+              {Object.keys(data[0]).map((key) => (
+                <th key={key} className="p-2">{key}</th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((row, i) => (
+              <tr key={i}>
+                {Object.values(row).map((val, j) => (
+                  <td key={j} className="p-2">{String(val)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div>No analytics data available.</div>
+      )}
     </div>
   );
 }
