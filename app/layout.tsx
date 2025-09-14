@@ -8,21 +8,21 @@ import "./globals.css"
 import QueryProvider from "../components/QueryProvider"
 
 export const metadata: Metadata = {
-  title: "ACORD Business Management",
+  title: "ACCORD Business Management",
   description: "Mobile-first business management app for field sales teams",
   generator: "v0.app",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "ACORD",
+    title: "ACCORD",
   },
   formatDetection: {
     telephone: false,
   },
   icons: {
-    icon: "/acord-app-icon-blue.jpg",
-    apple: "/acord-app-icon-blue.jpg",
+    icon: "/ACCORD-app-icon-blue.jpg",
+    apple: "/ACCORD-app-icon-blue.jpg",
   },
 }
 
@@ -44,14 +44,14 @@ export default function RootLayout({
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="ACORD" />
+        <meta name="apple-mobile-web-app-title" content="ACCORD" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#00aeef" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <link rel="apple-touch-icon" href="/acord-app-icon-blue.jpg" />
+        <link rel="apple-touch-icon" href="/ACCORD-app-icon-blue.jpg" />
         <link
           rel="mask-icon"
-          href="/acord-app-icon-blue.jpg"
+          href="/ACCORD-app-icon-blue.jpg"
           color="#00aeef"
         />
       </head>

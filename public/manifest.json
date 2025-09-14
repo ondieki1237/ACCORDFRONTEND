@@ -1,6 +1,6 @@
 {
-  "name": "ACORD Business Management",
-  "short_name": "ACORD",
+  "name": "ACCORD Business Management",
+  "short_name": "ACCORD",
   "description": "Mobile-first business management app for field sales teams",
   "start_url": "/",
   "display": "standalone",

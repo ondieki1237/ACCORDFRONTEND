@@ -1,4 +1,4 @@
-# ACORD Business Management App
+# ACCORD Business Management App
 
 A mobile-first business management application built with Next.js and designed for field sales teams. Features trail tracking, visit management, and comprehensive analytics.
 
@@ -73,7 +73,7 @@ The app includes Progressive Web App (PWA) capabilities:
 
 ## API Integration
 
-The app connects to the ACORD backend API at `https://accordbackend.onrender.com/api` with endpoints for:
+The app connects to the ACCORD backend API at `https://accordbackend.onrender.com/api` with endpoints for:
 - Authentication (`/auth/*`)
 - Dashboard data (`/dashboard/*`)
 - Trail management (`/trails`)
@@ -97,7 +97,7 @@ npm start
 
 ## Color Scheme
 
-- Primary: #00aeef (ACORD Blue)
+- Primary: #00aeef (ACCORD Blue)
 - Secondary: Red accents for alerts and notifications
 - Background: White with soft gray cards
 - Text: Dark gray for optimal readability

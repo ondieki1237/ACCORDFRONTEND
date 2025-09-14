@@ -51,7 +51,7 @@ export default function HomePage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-2xl font-bold text-primary mb-2">ACORD</div>
+          <div className="text-2xl font-bold text-primary mb-2">ACCORD</div>
           <div className="text-muted-foreground">Loading...</div>
         </div>
       </div>
@@ -99,7 +99,7 @@ export default function HomePage() {
       <TouchGestures onSwipeLeft={handleSwipeLeft} onSwipeRight={handleSwipeRight}>
         <main className="container mx-auto p-4 lg:p-6">
           <div className="hidden lg:block mb-6">
-            <h1 className="text-3xl font-bold text-primary">ACORD Dashboard</h1>
+            <h1 className="text-3xl font-bold text-primary">ACCORD Dashboard</h1>
             <p className="text-muted-foreground">Manage your business operations</p>
           </div>
 

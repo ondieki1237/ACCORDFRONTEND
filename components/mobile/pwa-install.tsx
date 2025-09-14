@@ -72,7 +72,7 @@ export function PWAInstall() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Smartphone className="h-5 w-5 text-primary" />
-            <CardTitle className="text-sm">Install ACORD App</CardTitle>
+            <CardTitle className="text-sm">Install ACCORD App</CardTitle>
           </div>
           <Button variant="ghost" size="icon" onClick={handleDismiss} className="h-6 w-6">
             <X className="h-4 w-4" />
