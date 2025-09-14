@@ -39,6 +39,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import { RefreshCw, MapPin, Activity } from 'lucide-react';
+import HospitalLayer from "./HospitalLayer";
 
 // Extend the Leaflet Map type to include heatLayer
 declare module 'leaflet' {
@@ -121,6 +122,7 @@ const HeatmapDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
+  const [showHospitals, setShowHospitals] = useState<boolean>(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Kenya bounds for better map positioning
@@ -179,10 +181,16 @@ const HeatmapDashboard: React.FC = () => {
     setAutoRefresh(!autoRefresh);
   };
 
-
+  // Custom icon using a location pin
+  const locationIcon = new L.Icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png", // location icon
+    iconSize: [30, 30],   // size of the icon
+    iconAnchor: [15, 30], // point of the icon that corresponds to marker's location
+    popupAnchor: [0, -28] // popup position relative to the icon
+  });
 
   return (
-  <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar: List active points, trails, owners, and selection UI */}
       <aside className="w-80 bg-white border-r border-gray-200 p-4 flex flex-col gap-6">
         <div>
@@ -232,154 +240,165 @@ const HeatmapDashboard: React.FC = () => {
             ))}
           </ul>
         </div>
+        <div>
+          <button
+            onClick={() => setShowHospitals((prev) => !prev)}
+            className={`w-full mt-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+              showHospitals
+                ? 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200'
+                : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+            }`}
+          >
+            {showHospitals ? "Hide" : "Show"} Hospital Locations
+          </button>
+        </div>
       </aside>
 
-  <div className="flex-1 flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center space-x-3">
-          <div className="bg-blue-500 p-2 rounded-lg">
-            <MapPin className="h-6 w-6 text-white" />
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <div className="bg-blue-500 p-2 rounded-lg">
+              <MapPin className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Sales Person Heatmap</h1>
+              <p className="text-gray-600">Live tracking of field sales activities in Kenya</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Sales Person Heatmap</h1>
-            <p className="text-gray-600">Live tracking of field sales activities in Kenya</p>
+
+          <div className="flex items-center space-x-4">
+            <div className="bg-gray-50 px-4 py-2 rounded-lg flex items-center space-x-2">
+              <Activity className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium text-gray-700">
+                {trails.reduce((acc, t) => acc + t.path.length, 0)} Active Points
+              </span>
+            </div>
+            {lastUpdated && (
+              <div className="text-sm text-gray-500">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </div>
+            )}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={toggleAutoRefresh}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  autoRefresh
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Auto: {autoRefresh ? 'ON' : 'OFF'}
+              </button>
+              <button
+                onClick={handleManualRefresh}
+                disabled={loading}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <span>Refresh</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <div className="bg-gray-50 px-4 py-2 rounded-lg flex items-center space-x-2">
-            <Activity className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-medium text-gray-700">
-              {trails.reduce((acc, t) => acc + t.path.length, 0)} Active Points
-            </span>
-          </div>
-          {lastUpdated && (
-            <div className="text-sm text-gray-500">
-              Last updated: {lastUpdated.toLocaleTimeString()}
+        {/* Map */}
+        <div className="relative h-[calc(100vh-100px)]">
+          {error && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg">
+              <span className="font-medium">Error:</span> {error}
             </div>
           )}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={toggleAutoRefresh}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                autoRefresh
-                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Auto: {autoRefresh ? 'ON' : 'OFF'}
-            </button>
-            <button
-              onClick={handleManualRefresh}
-              disabled={loading}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
-      </div>
+          {loading && (
+            <div className="absolute top-4 right-4 z-[1000] bg-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
+              <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
+              <span className="text-sm text-gray-700">Loading data...</span>
+            </div>
+          )}
 
-  {/* Map */}
-  <div className="relative h-[calc(100vh-100px)]">
-        {error && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg">
-            <span className="font-medium">Error:</span> {error}
-          </div>
-        )}
-        {loading && (
-          <div className="absolute top-4 right-4 z-[1000] bg-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
-            <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
-            <span className="text-sm text-gray-700">Loading data...</span>
-          </div>
-        )}
+          {/*
+          // To debug bounds issues, you can temporarily use center/zoom instead of bounds:
+          // <MapContainer center={[-1.286389, 36.817223]} zoom={7} className="h-full w-full">
+          */}
+          {/* Temporarily use center/zoom for debugging polyline visibility */}
+          <MapContainer center={[-1.286389, 36.817223]} zoom={7} className="h-full w-full">
+            <TileLayer
+              attribution='&copy; OpenStreetMap contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
 
-  {/*
-  // To debug bounds issues, you can temporarily use center/zoom instead of bounds:
-  // <MapContainer center={[-1.286389, 36.817223]} zoom={7} className="h-full w-full">
-  */}
-  {/* Temporarily use center/zoom for debugging polyline visibility */}
-  <MapContainer center={[-1.286389, 36.817223]} zoom={7} className="h-full w-full">
-    <TileLayer
-      attribution='&copy; OpenStreetMap contributors'
-      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-    />
+            {/* Hospital locations */}
+            {showHospitals && <HospitalLayer />}
 
-    {/* Heatmap Layer */}
-    <HeatmapLayer
-      data={trails.flatMap(trail =>
-        trail.path.map(pt => ({
-          lat: pt.lng,   // swap
-          lng: pt.lat,   // swap
-          intensity: 1
-        }))
-      )}
-    />
+            {/* Heatmap Layer */}
+            <HeatmapLayer
+              data={trails.flatMap(trail =>
+                trail.path.map(pt => ({
+                  lat: pt.lat,
+                  lng: pt.lng,
+                  intensity: 1
+                }))
+              )}
+            />
 
-    {/* Trails */}
-    {(selectedUserId
-      ? trails.filter(trail => trail.user.id === selectedUserId)
-      : trails
-    ).map((trail) => {
-      // For 'Show All', color by user index in userList for consistency
-      const userIdx = userList.findIndex(u => u.id === trail.user.id);
-      const color = COLORS[userIdx % COLORS.length];
-      return (
-        <React.Fragment key={trail.user.id}>
-          {/* Draw trail as connected segments */}
-          {trail.path.map((pt, i) => {
-            if (i < trail.path.length - 1) {
-              const nextPt = trail.path[i + 1];
+            {/* Trails */}
+            {(selectedUserId
+              ? trails.filter(trail => trail.user.id === selectedUserId)
+              : trails
+            ).map((trail) => {
+              const userIdx = userList.findIndex(u => u.id === trail.user.id);
+              const color = COLORS[userIdx % COLORS.length];
               return (
-                <Polyline
-                  key={`${trail.user.id}-seg-${i}`}
-                  positions={[
-                    [pt.lng, pt.lat],       // swap
-                    [nextPt.lng, nextPt.lat] // swap
-                  ]}
-                  pathOptions={{
-                    color,
-                    weight: 3,
-                    opacity: 0.7
-                  }}
-                />
+                <React.Fragment key={trail.user.id}>
+                  {/* Draw trail as connected segments */}
+                  {trail.path.map((pt, i) => {
+                    if (i < trail.path.length - 1) {
+                      const nextPt = trail.path[i + 1];
+                      return (
+                        <Polyline
+                          key={`${trail.user.id}-seg-${i}`}
+                          positions={[
+                            [pt.lng, pt.lat], // swap
+                            [nextPt.lng, nextPt.lat] // swap
+                          ]}
+                          pathOptions={{
+                            color,
+                            weight: 3,
+                            opacity: 0.7
+                          }}
+                        />
+                      );
+                    }
+                    return null;
+                  })}
+
+                  {/* Markers for every point */}
+                  {trail.path.map((pt, i) => (
+                    <Marker key={`${trail.user.id}-pt-${i}`} position={[pt.lat, pt.lng]} icon={locationIcon}>
+                      <Popup>
+                        <div>
+                          <strong>{trail.user.name}</strong><br />
+                          Employee ID: {trail.user.employeeId}<br />
+                          Region: {trail.user.region}<br />
+                          Point #{i + 1}: [{pt.lat}, {pt.lng}]
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                </React.Fragment>
               );
-            }
-            return null;
-          })}
-
-          {/* Markers for every point */}
-
-          {trail.path.map((pt, i) => (
-  <Marker key={`${trail.user.id}-pt-${i}`} position={[pt.lat, pt.lng]}>  
-    <Popup>
-      <div>
-        <strong>{trail.user.name}</strong><br />
-        Employee ID: {trail.user.employeeId}<br />
-        Region: {trail.user.region}<br />
-        Point #{i + 1}: [{pt.lat}, {pt.lng}]
-      </div>
-    </Popup>
-  </Marker>
-))}
-
-        </React.Fragment>
-      );
-    })}
-        </MapContainer>
-      </div>
-
-      {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-white p-4 rounded-lg shadow-lg z-[1000]">
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">Activity Intensity</h3>
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-gray-600">Low</span>
-          <div className="w-20 h-3 rounded-full bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 to-red-600"></div>
-          <span className="text-xs text-gray-600">High</span>
+            })}
+          </MapContainer>
+          {/* Legend */}
+          <div className="absolute bottom-4 left-4 bg-white p-4 rounded-lg shadow-lg z-[1000]">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Activity Intensity</h3>
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-gray-600">Low</span>
+              <div className="w-20 h-3 rounded-full bg-gradient-to-r from-blue-500 via-green-500 via-yellow-500 to-red-600"></div>
+              <span className="text-xs text-gray-600">High</span>
+            </div>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );
