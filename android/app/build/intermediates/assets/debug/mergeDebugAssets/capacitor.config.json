@@ -1,0 +1,41 @@
+{
+	"appId": "com.ACCORD.business",
+	"appName": "ACCORD",
+	"webDir": "out",
+	"server": {
+		"androidScheme": "https"
+	},
+	"plugins": {
+		"Geolocation": {
+			"permissions": [
+				"ACCESS_COARSE_LOCATION",
+				"ACCESS_FINE_LOCATION"
+			]
+		},
+		"Camera": {
+			"permissions": [
+				"CAMERA",
+				"READ_EXTERNAL_STORAGE",
+				"WRITE_EXTERNAL_STORAGE"
+			]
+		},
+		"LocalNotifications": {
+			"smallIcon": "ic_stat_icon_config_sample",
+			"iconColor": "#00aeef"
+		},
+		"PushNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"alert"
+			]
+		}
+	},
+	"android": {
+		"allowMixedContent": true,
+		"captureInput": true
+	},
+	"ios": {
+		"contentInset": "automatic"
+	}
+}

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
-import { DashboardOverview } from "@/components/dashboard/dashboard-overview"
 import { TrailManagement } from "@/components/trails/trail-management"
 import { VisitManagement } from "@/components/visits/visit-management"
 import { MobileNav } from "@/components/layout/mobile-nav"
@@ -15,6 +14,9 @@ import { authService } from "@/lib/auth"
 import { Toaster } from "@/components/ui/toaster"
 import { UserProfile } from "@/components/profile/user-profile"
 
+// Import your sales home page
+import SalesDashboard from "@/components/saleshome/page"
+
 export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
@@ -22,7 +24,6 @@ export default function HomePage() {
   const [currentPage, setCurrentPage] = useState("dashboard")
 
   useEffect(() => {
-    // Check if user is already authenticated
     setIsAuthenticated(authService.isAuthenticated())
     setIsLoading(false)
   }, [])
@@ -76,7 +77,7 @@ export default function HomePage() {
   const renderCurrentPage = () => {
     switch (currentPage) {
       case "dashboard":
-        return <DashboardOverview />
+        return <SalesDashboard /> // Show your sales home page here
       case "visits":
         return <VisitManagement />
       case "trails":
@@ -84,7 +85,7 @@ export default function HomePage() {
       case "profile":
         return <UserProfile />
       default:
-        return <DashboardOverview />
+        return <VisitManagement />
     }
   }
 
