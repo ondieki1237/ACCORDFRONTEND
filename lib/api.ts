@@ -36,16 +36,16 @@ export interface Trail {
 }
 
 export interface Visit {
-  id: string
+  id?: string
   date: string
   startTime: string
-  endTime: string
   client: {
     name: string
+    type: string
+    location: string
   }
-  contacts: any[]
-  requestedEquipment: any[]
-  notes: string
+  visitPurpose: string
+  contacts: { name: string; role: string }[]
 }
 
 class ApiService {
@@ -101,7 +101,20 @@ class ApiService {
     }
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
+      // Try to parse error response for better debugging
+      let errorMsg = response.statusText;
+      try {
+        const errorData = await response.json();
+        if (errorData && errorData.message) {
+          errorMsg = errorData.message;
+        }
+        if (errorData && errorData.errors) {
+          errorMsg += ": " + JSON.stringify(errorData.errors);
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+      throw new Error(`API request failed: ${errorMsg}`);
     }
 
     return response.json();
@@ -159,10 +172,25 @@ class ApiService {
   }
 
   async createVisit(visitData: Omit<Visit, "id">): Promise<Visit> {
+    // Only send the fields the backend expects
+    const payload = {
+      date: visitData.date,
+      startTime: visitData.startTime,
+      client: {
+        name: visitData.client.name,
+        type: visitData.client.type,
+        location: visitData.client.location,
+      },
+      visitPurpose: visitData.visitPurpose,
+      contacts: (visitData.contacts || []).map(c => ({
+        name: c.name,
+        role: c.role,
+      })),
+    };
     return this.makeRequest("/visits", {
       method: "POST",
-      body: JSON.stringify(visitData),
-    })
+      body: JSON.stringify(payload),
+    });
   }
 
   async deleteVisit(visitId: string): Promise<void> {

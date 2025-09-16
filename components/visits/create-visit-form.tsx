@@ -1,13 +1,11 @@
 "use client"
 
-import type React from "react"
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Building, Users, Clock, FileText, MapPin } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Building, Users, Clock, MapPin } from "lucide-react"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -20,39 +18,71 @@ interface CreateVisitFormProps {
 interface VisitFormData {
   date: string
   startTime: string
-  endTime: string
   clientName: string
   clientType: string
-  latitude: string
-  longitude: string
+  location: string
   visitPurpose: string
+  visitOutcome: string
   contactName: string
-  contactEmail: string
+  contactRole: string
   contactPhone: string
-  notes: string
-  equipment: string
+  contactEmail: string
+  isFollowUpRequired: boolean
 }
+
+const LOCAL_KEY = "pendingVisits"
 
 export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   const [formData, setFormData] = useState<VisitFormData>({
     date: new Date().toISOString().split("T")[0],
-    startTime: "",
-    endTime: "",
+    startTime: "09:00",
     clientName: "",
     clientType: "hospital",
-    latitude: "",
-    longitude: "",
-    visitPurpose: "routine_visit",
+    location: "",
+    visitPurpose: "demo",
+    visitOutcome: "successful",
     contactName: "",
-    contactEmail: "",
+    contactRole: "other",
     contactPhone: "",
-    notes: "",
-    equipment: "",
+    contactEmail: "",
+    isFollowUpRequired: false,
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+  const [pendingVisits, setPendingVisits] = useState<any[]>([])
 
-  const updateField = (field: keyof VisitFormData, value: string) => {
+  // Load pending visits from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(LOCAL_KEY)
+    if (stored) setPendingVisits(JSON.parse(stored))
+  }, [])
+
+  // Sync pending visits when online
+  useEffect(() => {
+    const syncPending = async () => {
+      if (navigator.onLine && pendingVisits.length > 0) {
+        const failed: any[] = []
+        for (const visit of pendingVisits) {
+          try {
+            await apiService.createVisit(visit)
+          } catch (err) {
+            failed.push(visit)
+          }
+        }
+        setPendingVisits(failed)
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(failed))
+        toast({
+          title: failed.length === 0 ? "Offline visits synced" : "Some visits failed to sync",
+          description: failed.length === 0 ? "All offline visits have been uploaded." : "Some offline visits could not be uploaded.",
+          variant: failed.length === 0 ? "default" : "destructive",
+        })
+      }
+    }
+    window.addEventListener("online", syncPending)
+    return () => window.removeEventListener("online", syncPending)
+  }, [pendingVisits, toast])
+
+  const updateField = (field: keyof VisitFormData, value: string | boolean) => {
     setFormData({ ...formData, [field]: value })
   }
 
@@ -61,46 +91,46 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
     setIsSubmitting(true)
 
     try {
-      const startDateTime = new Date(`${formData.date}T${formData.startTime}:00Z`).toISOString()
-      const endDateTime = new Date(`${formData.date}T${formData.endTime}:00Z`).toISOString()
-
+      const dateTime = new Date(`${formData.date}T${formData.startTime}:00Z`).toISOString()
       const visitData = {
-        visitId: `VISIT-${Date.now()}`, // Simple unique ID
-        date: formData.date,
-        startTime: startDateTime,
-        endTime: endDateTime,
+        date: dateTime,
+        startTime: dateTime,
         client: {
           name: formData.clientName,
           type: formData.clientType,
-          location: {
-            coordinates: [
-              parseFloat(formData.longitude) || 0,
-              parseFloat(formData.latitude) || 0
-            ]
-          }
+          location: formData.location,
         },
         visitPurpose: formData.visitPurpose,
+        visitOutcome: formData.visitOutcome,
         contacts: formData.contactName
           ? [{
               name: formData.contactName,
+              role: formData.contactRole,
+              phone: formData.contactPhone,
               email: formData.contactEmail,
-              phone: formData.contactPhone
             }]
           : [],
-        requestedEquipment: formData.equipment ? [formData.equipment] : [],
-        notes: formData.notes || ""
+        isFollowUpRequired: formData.isFollowUpRequired,
       }
 
-      await apiService.createVisit(visitData)
-
-      toast({
-        title: "Visit scheduled",
-        description: "Your client visit has been successfully scheduled.",
-      })
-
-      onSuccess()
+      if (navigator.onLine) {
+        await apiService.createVisit(visitData)
+        toast({
+          title: "Visit scheduled",
+          description: "Your client visit has been successfully scheduled.",
+        })
+        onSuccess()
+      } else {
+        const updatedPending = [...pendingVisits, visitData]
+        setPendingVisits(updatedPending)
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(updatedPending))
+        toast({
+          title: "Offline mode",
+          description: "Visit saved locally and will upload when online.",
+        })
+        onSuccess()
+      }
     } catch (error) {
-      console.error("Failed to create visit:", error)
       toast({
         title: "Scheduling failed",
         description: "Could not schedule your visit. Please try again.",
@@ -112,11 +142,11 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Schedule New Visit</h2>
-          <p className="text-muted-foreground">Create a new client visit appointment</p>
+          <h2 className="text-2xl font-bold">Record Client Visit</h2>
+          <p className="text-muted-foreground">Create a new client visit:</p>
         </div>
         <Button variant="outline" onClick={onCancel}>
           Cancel
@@ -131,66 +161,54 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
               <Clock className="h-5 w-5" />
               Visit Details
             </CardTitle>
-            <CardDescription>When will the visit take place?</CardDescription>
+            <CardDescription>Specify the date and time of the visit</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => updateField("date", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="startTime">Start Time</Label>
-                <Input
-                  id="startTime"
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) => updateField("startTime", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endTime">End Time</Label>
-                <Input
-                  id="endTime"
-                  type="time"
-                  value={formData.endTime}
-                  onChange={(e) => updateField("endTime", e.target.value)}
-                  required
-                />
-              </div>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={formData.date}
+                onChange={(e) => updateField("date", e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="startTime">Start Time</Label>
+              <Input
+                id="startTime"
+                type="time"
+                value={formData.startTime}
+                onChange={(e) => updateField("startTime", e.target.value)}
+                required
+              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Client Info */}
+        {/* Client Information */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building className="h-5 w-5" />
               Client Information
             </CardTitle>
-            <CardDescription>Who are you visiting?</CardDescription>
+            <CardDescription>Details about the client</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="clientName">Client/Company Name</Label>
+              <Label htmlFor="clientName">Facility Name</Label>
               <Input
                 id="clientName"
-                placeholder="Client A"
+                placeholder="e.g. Acme Hospital"
                 value={formData.clientName}
                 onChange={(e) => updateField("clientName", e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label>Client Type</Label>
+              <Label htmlFor="clientType">Client Type</Label>
               <Select value={formData.clientType} onValueChange={(v) => updateField("clientType", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select client type" />
@@ -198,57 +216,80 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                 <SelectContent>
                   <SelectItem value="hospital">Hospital</SelectItem>
                   <SelectItem value="clinic">Clinic</SelectItem>
-                  <SelectItem value="company">Company</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="latitude">Latitude</Label>
-                <Input
-                  id="latitude"
-                  type="text"
-                  placeholder="-1.2921"
-                  value={formData.latitude}
-                  onChange={(e) => updateField("latitude", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="longitude">Longitude</Label>
-                <Input
-                  id="longitude"
-                  type="text"
-                  placeholder="36.8219"
-                  value={formData.longitude}
-                  onChange={(e) => updateField("longitude", e.target.value)}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="location">Location</Label>
+              <Input
+                id="location"
+                placeholder="e.g. Nairobi"
+                value={formData.location}
+                onChange={(e) => updateField("location", e.target.value)}
+                required
+              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Visit Purpose */}
+        {/* Visit Purpose and Outcome */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5" />
-              Visit Purpose
+              Visit Purpose & Outcome
             </CardTitle>
-            <CardDescription>Why is this visit happening?</CardDescription>
+            <CardDescription>Purpose and expected outcome of the visit</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <Select value={formData.visitPurpose} onValueChange={(v) => updateField("visitPurpose", v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select purpose" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="routine_visit">Routine Visit</SelectItem>
-                <SelectItem value="training">Training</SelectItem>
-                <SelectItem value="maintenance">Maintenance</SelectItem>
-                <SelectItem value="emergency">Emergency</SelectItem>
-              </SelectContent>
-            </Select>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="visitPurpose">Visit Purpose</Label>
+              <Select value={formData.visitPurpose} onValueChange={(v) => updateField("visitPurpose", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select purpose" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="routine_visit">Routine Visit</SelectItem>
+                  <SelectItem value="follow_up">Follow Up</SelectItem>
+                  <SelectItem value="demo">Demo</SelectItem>
+                  <SelectItem value="service">Service</SelectItem>
+                  <SelectItem value="complaint">Complaint</SelectItem>
+                  <SelectItem value="order">Order</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="visitOutcome">Visit Outcome</Label>
+              <Select value={formData.visitOutcome} onValueChange={(v) => updateField("visitOutcome", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select outcome" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="successful">Successful</SelectItem>
+                  <SelectItem value="partial">Partial</SelectItem>
+                  <SelectItem value="no_access">No Access</SelectItem>
+                  <SelectItem value="rescheduled">Rescheduled</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="isFollowUpRequired">Follow-Up Required</Label>
+              <Select
+                value={formData.isFollowUpRequired.toString()}
+                onValueChange={(v) => updateField("isFollowUpRequired", v === "true")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select follow-up requirement" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="false">No</SelectItem>
+                  <SelectItem value="true">Yes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
 
@@ -259,70 +300,52 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
               <Users className="h-5 w-5" />
               Contact Person
             </CardTitle>
-            <CardDescription>Primary contact for this visit (optional)</CardDescription>
+            <CardDescription>Primary contact for this visit (Compulsory)</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="contactName">Contact Name</Label>
               <Input
                 id="contactName"
-                placeholder="John Smith"
+                placeholder="e.g. Dr. Jane Doe"
                 value={formData.contactName}
                 onChange={(e) => updateField("contactName", e.target.value)}
               />
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="contactEmail">Email</Label>
-                <Input
-                  id="contactEmail"
-                  type="email"
-                  placeholder="john@client.com"
-                  value={formData.contactEmail}
-                  onChange={(e) => updateField("contactEmail", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="contactPhone">Phone</Label>
-                <Input
-                  id="contactPhone"
-                  type="tel"
-                  placeholder="+1 (555) 123-4567"
-                  value={formData.contactPhone}
-                  onChange={(e) => updateField("contactPhone", e.target.value)}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Notes & Equipment */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Additional Information
-            </CardTitle>
-            <CardDescription>Notes and equipment requirements</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="equipment">Requested Equipment</Label>
+              <Label htmlFor="contactRole">Contact Role</Label>
+              <Select value={formData.contactRole} onValueChange={(v) => updateField("contactRole", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="doctor">Doctor</SelectItem>
+                  <SelectItem value="nurse">Nurse</SelectItem>
+                  <SelectItem value="lab_technician">Lab Technician</SelectItem>
+                  <SelectItem value="pharmacist">Pharmacist</SelectItem>
+                  <SelectItem value="administrator">Administrator</SelectItem>
+                  <SelectItem value="procurement">Procurement</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contactPhone">Contact Phone</Label>
               <Input
-                id="equipment"
-                placeholder="Laptop, projector, samples..."
-                value={formData.equipment}
-                onChange={(e) => updateField("equipment", e.target.value)}
+                id="contactPhone"
+                placeholder="e.g. +254712345678"
+                value={formData.contactPhone}
+                onChange={(e) => updateField("contactPhone", e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="notes">Visit Notes</Label>
-              <Textarea
-                id="notes"
-                placeholder="Initial visit"
-                value={formData.notes}
-                onChange={(e) => updateField("notes", e.target.value)}
-                rows={4}
+              <Label htmlFor="contactEmail">Contact Email</Label>
+              <Input
+                id="contactEmail"
+                type="email"
+                placeholder="e.g. jane.doe@example.com"
+                value={formData.contactEmail}
+                onChange={(e) => updateField("contactEmail", e.target.value)}
               />
             </div>
           </CardContent>
@@ -330,7 +353,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
 
         <div className="flex gap-4">
           <Button type="submit" className="flex-1" disabled={isSubmitting}>
-            {isSubmitting ? "Scheduling Visit..." : "Schedule Visit"}
+            {isSubmitting ? "Scheduling..." : "Schedule Visit"}
           </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
             Cancel

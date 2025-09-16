@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,16 +12,16 @@ import { authService } from "@/lib/auth"
 import { canEditRecords, canDeleteRecords } from "@/lib/permissions"
 
 interface Visit {
-  id: string
+  _id: string
   date: string
   startTime: string
-  endTime: string
+  endTime?: string
   client: {
     name: string
   }
   contacts: any[]
-  requestedEquipment: any[]
-  notes: string
+  requestedEquipment?: any[]
+  notes?: string
   status?: "scheduled" | "in-progress" | "completed" | "cancelled"
 }
 
@@ -51,13 +50,20 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
       fetchUser()
     }
 
-    const fetchVisits = async () => {
+    const fetchMyVisits = async () => {
       try {
         setIsLoading(true)
-        const response = await apiService.getVisits(1, 20)
-
-        // Handle different response formats
-        const visitsData = response.visits || response.data || response || []
+        const token = localStorage.getItem("accessToken")
+        const response = await fetch("http://localhost:5000/api/dashboard/my-visits", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+        })
+        if (!response.ok) throw new Error("Failed to fetch visits")
+        const data = await response.json()
+        const visitsData = data?.data || []
         setVisits(Array.isArray(visitsData) ? visitsData : [])
       } catch (error) {
         console.error("Failed to fetch visits:", error)
@@ -72,7 +78,7 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
       }
     }
 
-    fetchVisits()
+    fetchMyVisits()
   }, [toast, currentUser])
 
   const handleDeleteVisit = async (visitId: string, e: React.MouseEvent) => {
@@ -90,7 +96,7 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
     if (confirm("Are you sure you want to delete this visit?")) {
       try {
         await apiService.deleteVisit(visitId)
-        setVisits(visits.filter((visit) => visit.id !== visitId))
+        setVisits(visits.filter((visit) => visit._id !== visitId))
         toast({
           title: "Visit deleted",
           description: "The visit has been successfully deleted.",
@@ -105,7 +111,8 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
     }
   }
 
-  const calculateDuration = (startTime: string, endTime: string) => {
+  const calculateDuration = (startTime: string, endTime?: string) => {
+    if (!endTime) return "N/A"
     const start = new Date(startTime)
     const end = new Date(endTime)
     const diffMs = end.getTime() - start.getTime()
@@ -117,7 +124,7 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
   const getVisitStatus = (visit: Visit) => {
     const now = new Date()
     const visitStart = new Date(visit.startTime)
-    const visitEnd = new Date(visit.endTime)
+    const visitEnd = visit.endTime ? new Date(visit.endTime) : visitStart
 
     if (visit.status) return visit.status
 
@@ -155,8 +162,8 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Visit Management</h2>
-          <p className="text-muted-foreground">Track and manage client visits</p>
+          <h2 className="text-2xl font-bold">My Visits</h2>
+          <p className="text-muted-foreground">Your scheduled and completed client visits</p>
         </div>
         <Button onClick={onCreateVisit} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
@@ -178,7 +185,7 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
           {visits.map((visit) => {
             const status = getVisitStatus(visit)
             return (
-              <Card key={visit.id} className="hover:shadow-md transition-shadow">
+              <Card key={visit._id} className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -234,7 +241,6 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
                           variant="outline"
                           onClick={(e) => {
                             e.stopPropagation()
-                            // TODO: Implement edit functionality
                             toast({
                               title: "Edit feature",
                               description: "Edit functionality coming soon.",
@@ -249,7 +255,7 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={(e) => handleDeleteVisit(visit.id, e)}
+                          onClick={(e) => handleDeleteVisit(visit._id, e)}
                           className="flex items-center gap-1 text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-3 w-3" />

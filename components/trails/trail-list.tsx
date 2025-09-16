@@ -1,29 +1,21 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Clock, Calendar, Plus, Edit, Trash2, Eye } from "lucide-react"
-import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { authService } from "@/lib/auth"
 import { canEditRecords, canDeleteRecords } from "@/lib/permissions"
 
 interface Trail {
-  id: string
-  date: string
-  startTime: string
-  endTime: string
-  path: {
-    coordinates: number[][]
-  }
-  stops: any[]
-  deviceInfo: any
-  duration?: number
-  distance?: number
+  _id: string
+  path: { coordinates: number[][] }
+  totalDistance?: number
+  totalDuration?: number
+  createdAt: string
 }
 
 interface TrailListProps {
@@ -51,13 +43,18 @@ export function TrailList({ onCreateTrail, onViewTrail }: TrailListProps) {
       fetchUser()
     }
 
-    const fetchTrails = async () => {
+    const fetchMyTrails = async () => {
       try {
         setIsLoading(true)
-        const response = await apiService.getTrails(1, 20)
-
-        // Handle different response formats
-        const trailsData = response.trails || response.data || response || []
+        const token = localStorage.getItem("accessToken")
+        const response = await fetch("http://localhost:5000/api/dashboard/my-trails", {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        })
+        const data = await response.json()
+        const trailsData = data?.data || []
         setTrails(Array.isArray(trailsData) ? trailsData : [])
       } catch (error) {
         console.error("Failed to fetch trails:", error)
@@ -72,68 +69,19 @@ export function TrailList({ onCreateTrail, onViewTrail }: TrailListProps) {
       }
     }
 
-    fetchTrails()
+    fetchMyTrails()
   }, [toast, currentUser])
 
-  const handleDeleteTrail = async (trailId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-
-    if (!canDeleteRecords(currentUser)) {
-      toast({
-        title: "Access denied",
-        description: "You don't have permission to delete trails.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (confirm("Are you sure you want to delete this trail?")) {
-      try {
-        await apiService.deleteTrail(trailId)
-        setTrails(trails.filter((trail) => trail.id !== trailId))
-        toast({
-          title: "Trail deleted",
-          description: "The trail has been successfully deleted.",
-        })
-      } catch (error) {
-        toast({
-          title: "Delete failed",
-          description: "Could not delete the trail. Please try again.",
-          variant: "destructive",
-        })
-      }
-    }
+  const calculateDistance = (distance?: number) => {
+    if (!distance) return "0 km"
+    return `${distance.toFixed(1)} km`
   }
 
-  const calculateDuration = (startTime: string, endTime: string) => {
-    const start = new Date(startTime)
-    const end = new Date(endTime)
-    const diffMs = end.getTime() - start.getTime()
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-    return `${diffHours}h ${diffMinutes}m`
-  }
-
-  const calculateDistance = (coordinates: number[][]) => {
-    if (!coordinates || coordinates.length < 2) return "0 km"
-
-    // Simple distance calculation (Haversine formula approximation)
-    let totalDistance = 0
-    for (let i = 1; i < coordinates.length; i++) {
-      const [lat1, lon1] = coordinates[i - 1]
-      const [lat2, lon2] = coordinates[i]
-
-      const R = 6371 // Earth's radius in km
-      const dLat = ((lat2 - lat1) * Math.PI) / 180
-      const dLon = ((lon2 - lon1) * Math.PI) / 180
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2)
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-      totalDistance += R * c
-    }
-
-    return `${totalDistance.toFixed(1)} km`
+  const calculateDuration = (duration?: number) => {
+    if (!duration) return "0m"
+    const hours = Math.floor(duration / 60)
+    const minutes = duration % 60
+    return `${hours}h ${minutes}m`
   }
 
   if (isLoading) {
@@ -150,8 +98,8 @@ export function TrailList({ onCreateTrail, onViewTrail }: TrailListProps) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Trail Management</h2>
-          <p className="text-muted-foreground">Track and manage your field routes</p>
+          <h2 className="text-2xl font-bold">My Trails</h2>
+          <p className="text-muted-foreground">Your recorded field routes</p>
         </div>
         <Button onClick={onCreateTrail} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
@@ -171,19 +119,19 @@ export function TrailList({ onCreateTrail, onViewTrail }: TrailListProps) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {trails.map((trail) => (
-            <Card key={trail.id} className="hover:shadow-md transition-shadow">
+            <Card key={trail._id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Trail {trail.id}</CardTitle>
+                  <CardTitle className="text-lg">Trail {trail._id.slice(-6)}</CardTitle>
                   <Badge variant="outline">
                     <MapPin className="h-3 w-3 mr-1" />
-                    {trail.stops?.length || 0} stops
+                    {trail.path?.coordinates?.length || 0} points
                   </Badge>
                 </div>
                 <CardDescription>
                   <div className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
-                    {new Date(trail.date).toLocaleDateString()}
+                    {new Date(trail.createdAt).toLocaleDateString()}
                   </div>
                 </CardDescription>
               </CardHeader>
@@ -193,18 +141,13 @@ export function TrailList({ onCreateTrail, onViewTrail }: TrailListProps) {
                     <span className="text-muted-foreground">Duration:</span>
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {calculateDuration(trail.startTime, trail.endTime)}
+                      {calculateDuration(trail.totalDuration)}
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Distance:</span>
-                    <span>{calculateDistance(trail.path?.coordinates || [])}</span>
+                    <span>{calculateDistance(trail.totalDistance)}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Start:</span>
-                    <span>{new Date(trail.startTime).toLocaleTimeString()}</span>
-                  </div>
-
                   <div className="flex gap-2 pt-2">
                     <Button
                       size="sm"
@@ -221,7 +164,6 @@ export function TrailList({ onCreateTrail, onViewTrail }: TrailListProps) {
                         variant="outline"
                         onClick={(e) => {
                           e.stopPropagation()
-                          // TODO: Implement edit functionality
                           toast({
                             title: "Edit feature",
                             description: "Edit functionality coming soon.",
@@ -236,7 +178,10 @@ export function TrailList({ onCreateTrail, onViewTrail }: TrailListProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={(e) => handleDeleteTrail(trail.id, e)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          // Implement delete if needed
+                        }}
                         className="flex items-center gap-1 text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-3 w-3" />

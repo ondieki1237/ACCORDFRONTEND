@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Play, Square, Navigation } from "lucide-react"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast"
 interface CreateTrailFormProps {
   onSuccess: () => void
   onCancel: () => void
+  trailId?: string // Optional trailId for editing
+  initialData?: TrailData // Optional initial data for editing
 }
 
 interface TrailData {
@@ -20,17 +22,33 @@ interface TrailData {
   path: {
     coordinates: number[][]
   }
-  stops: any[]
-  deviceInfo: any
+  stops: { name: string; coordinates: number[] }[]
+  deviceInfo: {
+    deviceId: string
+    type: string
+    userAgent?: string
+    platform?: string
+    pointsRecorded?: number
+  }
 }
 
-export function CreateTrailForm({ onSuccess, onCancel }: CreateTrailFormProps) {
+export function CreateTrailForm({ onSuccess, onCancel, trailId, initialData }: CreateTrailFormProps) {
   const [isTracking, setIsTracking] = useState(false)
-  const [coordinates, setCoordinates] = useState<number[][]>([])
-  const [startTime, setStartTime] = useState<string>("")
+  const [coordinates, setCoordinates] = useState<number[][]>(initialData?.path.coordinates || [])
+  const [startTime, setStartTime] = useState<string>(initialData?.startTime || "")
+  const [stops, setStops] = useState<{ name: string; coordinates: number[] }[]>(initialData?.stops || [])
   const [watchId, setWatchId] = useState<number | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+
+  // Populate form with initial data when editing
+  useEffect(() => {
+    if (initialData) {
+      setCoordinates(initialData.path.coordinates || [])
+      setStartTime(initialData.startTime || "")
+      setStops(initialData.stops || [])
+    }
+  }, [initialData])
 
   const startTracking = () => {
     if (!navigator.geolocation) {
@@ -61,12 +79,14 @@ export function CreateTrailForm({ onSuccess, onCancel }: CreateTrailFormProps) {
           variant: "destructive",
         })
       },
-      options,
+      options
     )
 
     setWatchId(id)
     setIsTracking(true)
-    setStartTime(new Date().toISOString())
+    if (!startTime) {
+      setStartTime(new Date().toISOString())
+    }
 
     toast({
       title: "Tracking started",
@@ -105,26 +125,37 @@ export function CreateTrailForm({ onSuccess, onCancel }: CreateTrailFormProps) {
         startTime,
         endTime: new Date().toISOString(),
         path: { coordinates },
-        stops: [],
+        stops,
         deviceInfo: {
+          deviceId: initialData?.deviceInfo.deviceId || "TrailGen-002",
+          type: initialData?.deviceInfo.type || "GPS-Simulator",
           userAgent: navigator.userAgent,
           platform: navigator.platform,
           pointsRecorded: coordinates.length,
         },
       }
 
-      await apiService.createTrail(trailData)
-
-      toast({
-        title: "Trail saved",
-        description: "Your trail has been successfully recorded.",
-      })
+      if (trailId) {
+        // Update existing trail
+        await apiService.updateTrail(trailId, trailData)
+        toast({
+          title: "Trail updated",
+          description: "Your trail has been successfully updated.",
+        })
+      } else {
+        // Create new trail
+        await apiService.createTrail(trailData)
+        toast({
+          title: "Trail saved",
+          description: "Your trail has been successfully recorded.",
+        })
+      }
 
       onSuccess()
     } catch (error) {
-      console.error("Failed to save trail:", error)
+      console.error("Failed to save/update trail:", error)
       toast({
-        title: "Save failed",
+        title: trailId ? "Update failed" : "Save failed",
         description: "Could not save your trail. Please try again.",
         variant: "destructive",
       })
@@ -137,8 +168,10 @@ export function CreateTrailForm({ onSuccess, onCancel }: CreateTrailFormProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Create New Trail</h2>
-          <p className="text-muted-foreground">Record your field route with GPS tracking</p>
+          <h2 className="text-2xl font-bold">{trailId ? "Edit Trail" : "Create New Trail"}</h2>
+          <p className="text-muted-foreground">
+            {trailId ? "Update your field route with GPS tracking" : "Record your field route with GPS tracking"}
+          </p>
         </div>
         <Button variant="outline" onClick={onCancel}>
           Cancel
@@ -182,13 +215,19 @@ export function CreateTrailForm({ onSuccess, onCancel }: CreateTrailFormProps) {
                     <span className="font-medium">{new Date(startTime).toLocaleTimeString()}</span>
                   </div>
                 )}
+                {stops.length > 0 && (
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span>Stops Recorded:</span>
+                    <span className="font-medium">{stops.length}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {coordinates.length >= 2 && !isTracking && (
             <Button onClick={handleSubmit} className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Saving Trail..." : "Save Trail"}
+              {isSubmitting ? (trailId ? "Updating Trail..." : "Saving Trail...") : (trailId ? "Update Trail" : "Save Trail")}
             </Button>
           )}
         </CardContent>

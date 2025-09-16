@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useQuery, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { StatsCard } from "./stats-card";
 import { RecentActivity } from "./recent-activity";
@@ -25,10 +25,11 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
 } from "chart.js";
 
 // Register Chart.js components
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, Filler);
 
 interface DashboardData {
   overview: { totalVisits: number; totalTrails: number };
@@ -43,6 +44,8 @@ export function DashboardOverview() {
     endDate: format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), "yyyy-MM-dd"),
   });
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUserSync());
+  const [totalVisits, setTotalVisits] = useState(0);
+  const [averageDuration, setAverageDuration] = useState(0);
   const { toast } = useToast();
 
   // Fetch user if not available
@@ -55,18 +58,87 @@ export function DashboardOverview() {
     }
   }, [toast]);
 
+  // Fetch visits data
+  useEffect(() => {
+    const fetchVisits = async () => {
+      try {
+        const token = localStorage.getItem("accessToken")
+        const res = await fetch("http://localhost:5000/api/visits", {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          }
+        })
+        const data = await res.json()
+        const docs = data?.data?.docs || data?.docs || []
+        setTotalVisits(docs.length)
+
+        // Calculate average duration (in minutes)
+        let totalMinutes = 0
+        let count = 0
+        docs.forEach((visit: any) => {
+
+            const start = new Date(visit.startTime)
+            const end = new Date(visit.endTime)
+            const diff = (end.getTime() - start.getTime()) / (1000 * 60)
+            if (!isNaN(diff) && diff > 0) {
+              totalMinutes += diff
+              count++
+            }
+          }
+        )
+        setAverageDuration(count > 0 ? Math.round(totalMinutes / count) : 0)
+      } catch (err) {
+        setTotalVisits(0)
+        setAverageDuration(0)
+      }
+    }
+    fetchVisits()
+  }, []);
+
   // API calls with React Query
   const { data, isLoading, error } = useQuery({
     queryKey: ["dashboard", dateRange, currentUser?.region, currentUser?.id],
     queryFn: async () => {
       try {
-        const [overview, recentActivity, performance] = await Promise.all([
+        const token = localStorage.getItem("accessToken");
+        const [overview, recentActivity, performance, visitsRes] = await Promise.all([
           apiService.getDashboardOverview(dateRange.startDate, dateRange.endDate, currentUser?.region || "North"),
           apiService.getRecentActivity(20),
           apiService.getPerformanceMetrics(dateRange.startDate, dateRange.endDate, currentUser?.region || "North"),
+          fetch("http://localhost:5000/api/visits", {
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {})
+            }
+          }).then(res => res.json())
         ]);
-        // No getHeatmap method, so set heatmap to null
-        return { overview, recentActivity, performance, heatmap: null };
+        const docs = visitsRes?.data?.docs || visitsRes?.docs || [];
+        // Calculate average duration
+        let totalMinutes = 0, count = 0;
+        docs.forEach((visit: any) => {
+          if (visit.startTime && visit.endTime) {
+            const start = new Date(visit.startTime);
+            const end = new Date(visit.endTime);
+            const diff = (end.getTime() - start.getTime()) / (1000 * 60);
+            if (!isNaN(diff) && diff > 0) {
+              totalMinutes += diff;
+              count++;
+            }
+          }
+        });
+        const averageVisitDuration = count > 0 ? Math.round(totalMinutes / count) : 0;
+        // Merge into overview
+        return {
+          overview: {
+            ...overview,
+            totalVisits: docs.length,
+            averageVisitDuration,
+          },
+          recentActivity,
+          performance,
+          heatmap: null,
+        };
       } catch (err) {
         console.error("Dashboard query failed:", err);
         throw err;
@@ -112,24 +184,69 @@ export function DashboardOverview() {
     client: item.client?.name || item.clientName,
   }));
 
-  // Chart data for performance trends
-  const perfArr = Array.isArray(performanceData) ? performanceData : [];
+  // Fetch trails data FIRST
+  const { data: trailsData, isLoading: trailsLoading } = useQuery({
+    queryKey: ["allTrails"],
+    queryFn: async () => {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("http://localhost:5000/api/dashboard/all-trails", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      return data?.data || [];
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Now you can safely use trailsData below
+  // Build date-indexed maps for visits and trails
+  const visitsResDocs = data?.overview?.visits || []; // If you have visits by date, else use your fetched docs
+  const trailsDocs = Array.isArray(trailsData) ? trailsData : [];
+
+  // Collect all unique dates from both datasets
+  const allDatesSet = new Set<string>();
+  visitsResDocs.forEach((v: any) => v.date && allDatesSet.add(v.date.slice(0, 10)));
+  trailsDocs.forEach((t: any) => t.date && allDatesSet.add(t.date.slice(0, 10)));
+  const allDates = Array.from(allDatesSet).sort();
+
+  // Count visits and trails per date
+  const visitsByDate: Record<string, number> = {};
+  visitsResDocs.forEach((v: any) => {
+    const d = v.date?.slice(0, 10);
+    if (d) visitsByDate[d] = (visitsByDate[d] || 0) + 1;
+  });
+  const trailsByDate: Record<string, number> = {};
+  trailsDocs.forEach((t: any) => {
+    const d = t.date?.slice(0, 10);
+    if (d) trailsByDate[d] = (trailsByDate[d] || 0) + 1;
+  });
+
+  // Chart.js data for performance trends: Visits vs Trails
   const performanceChartData = {
-    labels: perfArr.map((item: any) => format(new Date(item.date), "MMM dd")),
+    labels: allDates.map((d) => format(new Date(d), "MMM dd")),
     datasets: [
       {
         label: "Visits",
-        data: perfArr.map((item: any) => item.visits),
+        data: allDates.map((d) => visitsByDate[d] || 0),
         borderColor: "hsl(var(--primary))",
         backgroundColor: "hsl(var(--primary)/0.2)",
-        fill: true,
+        fill: false,
+        tension: 0.3,
+        pointRadius: 4,
+        pointHoverRadius: 6,
       },
       {
         label: "Trails",
-        data: perfArr.map((item: any) => item.trails),
+        data: allDates.map((d) => trailsByDate[d] || 0),
         borderColor: "hsl(var(--secondary))",
         backgroundColor: "hsl(var(--secondary)/0.2)",
-        fill: true,
+        fill: false,
+        tension: 0.3,
+        pointRadius: 4,
+        pointHoverRadius: 6,
       },
     ],
   };
@@ -158,7 +275,11 @@ export function DashboardOverview() {
     ],
   };
 
-  if (isLoading) {
+  // Calculate total trails and distance
+  const totalTrails = trailsDocs.length;
+  const totalTrailDistance = trailsDocs.reduce((sum, trail) => sum + (trail.totalDistance || 0), 0);
+
+  if (isLoading || trailsLoading) {
     return (
       <div className="space-y-6">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -235,15 +356,15 @@ export function DashboardOverview() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatsCard
           title="Total Visits"
-          value={data?.overview.totalVisits || 0}
+          value={totalVisits}
           description="This period"
           icon={Users}
           trend={{ value: 12, isPositive: true }}
         />
         <StatsCard
           title="Total Trails"
-          value={data?.overview.totalTrails || 0}
-          description="This period"
+          value={totalTrails}
+          description={`Distance: ${totalTrailDistance.toFixed(2)} km`}
           icon={MapPin}
           trend={{ value: 8, isPositive: true }}
         />
@@ -267,10 +388,26 @@ export function DashboardOverview() {
       <Card className="neumorphic-card">
         <CardHeader>
           <CardTitle>Performance Trends</CardTitle>
-          <CardDescription>Visits and trails over time</CardDescription>
+          <CardDescription>Compare Visits and Trails productivity over time</CardDescription>
         </CardHeader>
         <CardContent>
-          <Line data={performanceChartData} options={{ responsive: true, maintainAspectRatio: false }} height={300} />
+          <Line
+            data={performanceChartData}
+            options={{
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: true, position: "top" },
+                tooltip: { mode: "index", intersect: false },
+              },
+              interaction: { mode: "nearest", axis: "x", intersect: false },
+              scales: {
+                x: { title: { display: true, text: "Date" } },
+                y: { title: { display: true, text: "Count" }, beginAtZero: true },
+              },
+            }}
+            height={300}
+          />
         </CardContent>
       </Card>
 
