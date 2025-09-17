@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -88,9 +87,6 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
     e.preventDefault()
 
     try {
-      // In a real app, this would call the API
-      // await apiService.addFollowUp(visit.id, followUp)
-
       toast({
         title: "Follow-up created",
         description: "Follow-up action has been scheduled successfully.",
@@ -117,23 +113,28 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={onBack}>
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onBack}
+          className="rounded-xl shadow-[5px_5px_10px_#d1d9e6,-5px_-5px_10px_#ffffff] hover:shadow-inner"
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold">{visit.client?.name || "Unknown Client"}</h2>
-            <Badge className={getStatusColor(status)}>{status}</Badge>
+            <Badge className={`${getStatusColor(status)} rounded-full px-3 py-1 shadow-sm`}>{status}</Badge>
           </div>
           <p className="text-muted-foreground">Visit details and information</p>
         </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+        <Card className="rounded-2xl shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff] border-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
+              <Calendar className="h-5 w-5 text-[#00aeef]" />
               Visit Information
             </CardTitle>
           </CardHeader>
@@ -152,18 +153,18 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Duration:</span>
-              <Badge variant="outline">
-                <Clock className="h-3 w-3 mr-1" />
+              <Badge variant="outline" className="rounded-lg px-2 py-1 bg-white shadow-inner">
+                <Clock className="h-3 w-3 mr-1 text-[#00aeef]" />
                 {calculateDuration(visit.startTime, visit.endTime)}
               </Badge>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="rounded-2xl shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff] border-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Building className="h-5 w-5" />
+              <Building className="h-5 w-5 text-[#00aeef]" />
               Client Details
             </CardTitle>
           </CardHeader>
@@ -185,29 +186,32 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
       </div>
 
       {visit.contacts && visit.contacts.length > 0 && (
-        <Card>
+        <Card className="rounded-2xl shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff] border-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
+              <Users className="h-5 w-5 text-[#00aeef]" />
               Contact Information
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {visit.contacts.map((contact, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 rounded-xl bg-[#f1f4f9] shadow-inner"
+                >
                   <div>
                     <div className="font-medium">{contact.name || "Unknown Contact"}</div>
                     <div className="text-sm text-muted-foreground flex items-center gap-4">
                       {contact.email && (
                         <div className="flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
+                          <Mail className="h-3 w-3 text-[#00aeef]" />
                           {contact.email}
                         </div>
                       )}
                       {contact.phone && (
                         <div className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
+                          <Phone className="h-3 w-3 text-[#00aeef]" />
                           {contact.phone}
                         </div>
                       )}
@@ -221,14 +225,14 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
       )}
 
       {visit.requestedEquipment && visit.requestedEquipment.length > 0 && (
-        <Card>
+        <Card className="rounded-2xl shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff] border-0">
           <CardHeader>
             <CardTitle>Requested Equipment</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {visit.requestedEquipment.map((item, index) => (
-                <Badge key={index} variant="outline">
+                <Badge key={index} variant="outline" className="rounded-xl px-3 py-1 bg-white shadow-inner">
                   {typeof item === "string" ? item : item.name || "Equipment"}
                 </Badge>
               ))}
@@ -238,10 +242,10 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
       )}
 
       {visit.notes && (
-        <Card>
+        <Card className="rounded-2xl shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff] border-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
+              <FileText className="h-5 w-5 text-[#00aeef]" />
               Visit Notes
             </CardTitle>
           </CardHeader>
@@ -251,17 +255,20 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
         </Card>
       )}
 
-      <Card>
+      <Card className="rounded-2xl shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff] border-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5" />
+            <AlertCircle className="h-5 w-5 text-[#00aeef]" />
             Follow-up Actions
           </CardTitle>
           <CardDescription>Schedule follow-up tasks for this visit</CardDescription>
         </CardHeader>
         <CardContent>
           {!showFollowUpForm ? (
-            <Button onClick={() => setShowFollowUpForm(true)} className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowFollowUpForm(true)}
+              className="flex items-center gap-2 rounded-xl bg-[#00aeef] text-white shadow-[4px_4px_10px_#b0bec5,-4px_-4px_10px_#ffffff] hover:shadow-inner"
+            >
               <Plus className="h-4 w-4" />
               Add Follow-up
             </Button>
@@ -275,6 +282,7 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
                   value={followUp.action}
                   onChange={(e) => setFollowUp({ ...followUp, action: e.target.value })}
                   required
+                  className="rounded-xl shadow-inner"
                 />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
@@ -286,6 +294,7 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
                     value={followUp.assignedTo}
                     onChange={(e) => setFollowUp({ ...followUp, assignedTo: e.target.value })}
                     required
+                    className="rounded-xl shadow-inner"
                   />
                 </div>
                 <div className="space-y-2">
@@ -296,6 +305,7 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
                     value={followUp.dueDate}
                     onChange={(e) => setFollowUp({ ...followUp, dueDate: e.target.value })}
                     required
+                    className="rounded-xl shadow-inner"
                   />
                 </div>
               </div>
@@ -305,7 +315,7 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
                   value={followUp.priority}
                   onValueChange={(value: "low" | "medium" | "high") => setFollowUp({ ...followUp, priority: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="rounded-xl shadow-inner">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -316,8 +326,18 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
                 </Select>
               </div>
               <div className="flex gap-2">
-                <Button type="submit">Create Follow-up</Button>
-                <Button type="button" variant="outline" onClick={() => setShowFollowUpForm(false)}>
+                <Button
+                  type="submit"
+                  className="rounded-xl bg-[#00aeef] text-white shadow-[4px_4px_10px_#b0bec5,-4px_-4px_10px_#ffffff] hover:shadow-inner"
+                >
+                  Create Follow-up
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowFollowUpForm(false)}
+                  className="rounded-xl shadow-[4px_4px_10px_#d1d9e6,-4px_-4px_10px_#ffffff] hover:shadow-inner"
+                >
                   Cancel
                 </Button>
               </div>

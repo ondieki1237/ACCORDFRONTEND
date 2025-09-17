@@ -350,6 +350,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
             </div>
           </CardContent>
         </Card>
+      
 
         <div className="flex gap-4">
           <Button type="submit" className="flex-1" disabled={isSubmitting}>

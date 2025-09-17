@@ -5,7 +5,6 @@ import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
 import { TrailManagement } from "@/components/trails/trail-management"
 import { VisitManagement } from "@/components/visits/visit-management"
-import { MobileNav } from "@/components/layout/mobile-nav"
 import { PWAInstall } from "@/components/mobile/pwa-install"
 import { OfflineIndicator } from "@/components/mobile/offline-indicator"
 import { MobileOptimizations } from "@/components/mobile/mobile-optimizations"
@@ -16,6 +15,9 @@ import { UserProfile } from "@/components/profile/user-profile"
 
 // Import your sales home page
 import SalesDashboard from "@/components/saleshome/page"
+
+// Icons for tabs
+import { Home, Calendar, Map, User } from "lucide-react"
 
 export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -77,7 +79,7 @@ export default function HomePage() {
   const renderCurrentPage = () => {
     switch (currentPage) {
       case "dashboard":
-        return <SalesDashboard /> // Show your sales home page here
+        return <SalesDashboard />
       case "visits":
         return <VisitManagement />
       case "trails":
@@ -90,12 +92,10 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-16 lg:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <MobileOptimizations />
       <OfflineIndicator />
       <PWAInstall />
-
-      <MobileNav currentPage={currentPage} onPageChange={setCurrentPage} />
 
       <TouchGestures onSwipeLeft={handleSwipeLeft} onSwipeRight={handleSwipeRight}>
         <main className="container mx-auto p-4 lg:p-6">
@@ -107,6 +107,32 @@ export default function HomePage() {
           {renderCurrentPage()}
         </main>
       </TouchGestures>
+
+      {/* Updated Neumorphic Mobile Tabs */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#f1f4f9] shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] rounded-t-2xl flex justify-around py-2 px-3 z-50 lg:hidden">
+        {[
+          { id: "dashboard", label: "Home", icon: Home },
+          { id: "visits", label: "Visits", icon: Calendar },
+          { id: "trails", label: "Trails", icon: Map },
+          { id: "profile", label: "Profile", icon: User },
+        ].map(({ id, label, icon: Icon }) => {
+          const isActive = currentPage === id
+          return (
+            <button
+              key={id}
+              onClick={() => setCurrentPage(id)}
+              className={`flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-all duration-200 ${
+                isActive
+                  ? "bg-[#00aeef] text-white shadow-inner scale-105"
+                  : "bg-[#f1f4f9] text-gray-600 shadow-[inset_4px_4px_8px_#d1d9e6,inset_-4px_-4px_8px_#ffffff] hover:scale-105"
+              }`}
+            >
+              <Icon className="h-5 w-5 mb-1" />
+              <span className="text-xs font-medium">{label}</span>
+            </button>
+          )
+        })}
+      </nav>
 
       <Toaster />
     </div>

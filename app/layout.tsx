@@ -21,12 +21,11 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/ACCORD-app-icon-blue.jpg",
-    apple: "/ACCORD-app-icon-blue.jpg",
+    icon: "/accord-icon.png",
+    apple: "/accord-icon.png",
   },
 }
 
-// ✅ Move viewport + themeColor here
 export const viewport: Viewport = {
   themeColor: "#00aeef",
   width: "device-width",
@@ -48,12 +47,13 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#00aeef" />
         <meta name="msapplication-tap-highlight" content="no" />
-        <link rel="apple-touch-icon" href="/ACCORD-app-icon-blue.jpg" />
+        <link rel="apple-touch-icon" href="/accord-icon.png" />
         <link
           rel="mask-icon"
-          href="/ACCORD-app-icon-blue.jpg"
+          href="/accord-icon.png"
           color="#00aeef"
         />
+        <link rel="icon" href="/accord-icon.png" />
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <QueryProvider>
