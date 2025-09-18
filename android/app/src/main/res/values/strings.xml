@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ACCORD Business</string>
+    <string name="title_activity_main">ACCORD Business</string>
+    <string name="package_name">com.ACCORD.business</string>
+    <string name="custom_url_scheme">com.ACCORD.business</string>
+</resources>

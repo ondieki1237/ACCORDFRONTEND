@@ -140,35 +140,36 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
             return (
               <Card
                 key={visit._id}
-                className="px-4 py-3 rounded-2xl bg-gray-50 flex justify-between items-center"
+                className="px-4 py-3 rounded-2xl bg-gray-50 flex items-center justify-between"
                 style={{ boxShadow: "8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff" }}
               >
-                {/* Left section */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="font-medium text-sm text-gray-700">
-                    {new Date(visit.date).toLocaleDateString()}
-                  </span>
-                  <span className="text-gray-500 text-sm sm:ml-4">
-                    {visit.client?.name || "Unknown Client"}
-                  </span>
-                  <Badge
-                    className={`ml-0 sm:ml-4 rounded-full px-2 py-1 text-xs ${getStatusColor(status)}`}
+                <div className="flex items-center justify-between w-full">
+                  {/* Left: Date, Client Name, Status */}
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium text-base text-gray-700">
+                      {new Date(visit.date).toLocaleDateString()}
+                    </span>
+                    <span className="text-gray-500 text-sm">
+                      {visit.client?.name || "Unknown Client"}
+                    </span>
+                    <Badge
+                      className={`rounded-full px-2 py-1 text-xs mt-1 w-fit ${getStatusColor(status)}`}
+                    >
+                      {status}
+                    </Badge>
+                  </div>
+                  {/* Right: View Button */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onViewVisit(visit)}
+                    className="rounded-xl px-4 py-2 flex items-center gap-1 text-[#00aeef] bg-gray-50 hover:bg-gray-100 transition"
+                    style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
                   >
-                    {status}
-                  </Badge>
+                    <Eye className="h-4 w-4" />
+                    View
+                  </Button>
                 </div>
-
-                {/* Right section */}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onViewVisit(visit)}
-                  className="rounded-xl px-3 py-1 flex items-center gap-1 text-[#00aeef] bg-gray-50 hover:bg-gray-100 transition"
-                  style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-                >
-                  <Eye className="h-4 w-4" />
-                  View
-                </Button>
               </Card>
             )
           })}

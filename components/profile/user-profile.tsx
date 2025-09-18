@@ -7,15 +7,19 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { authService, type User } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
-import { UserIcon, Mail, MapPin, Building, Shield, LogOut, Edit } from "lucide-react"
+import { UserIcon, Mail, MapPin, Building, Shield, LogOut, Edit, TrendingUp } from "lucide-react"
+import { Preferences } from "@capacitor/preferences"
 
 export function UserProfile() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [salesTarget, setSalesTarget] = useState<number | null>(null)
+  const [salesLoading, setSalesLoading] = useState(true)
   const { toast } = useToast()
 
   useEffect(() => {
     fetchUserProfile()
+    fetchSalesTarget()
   }, [])
 
   const fetchUserProfile = async () => {
@@ -37,6 +41,33 @@ export function UserProfile() {
       }
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Fetch sales target from API
+  const fetchSalesTarget = async () => {
+    try {
+      setSalesLoading(true)
+      const token = localStorage.getItem("accessToken")
+      const res = await fetch("http://localhost:5000/api/sales/my", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+      if (!res.ok) throw new Error("Failed to fetch sales")
+      const data = await res.json()
+      let target = 0
+      if (Array.isArray(data.data)) {
+        target = data.data.reduce((sum: number, sale: any) => sum + (sale.target || 0), 0)
+      } else if (data.data?.target) {
+        target = data.data.target
+      }
+      setSalesTarget(target)
+    } catch (error) {
+      setSalesTarget(null)
+    } finally {
+      setSalesLoading(false)
     }
   }
 
@@ -69,10 +100,18 @@ export function UserProfile() {
     }
   }
 
+  // Neumorphism utility classes
+  const neumorphicCard =
+    "rounded-2xl bg-gray-50 shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff]"
+  const neumorphicInset =
+    "bg-gray-50 rounded-lg shadow-inner"
+  const neumorphicButton =
+    "rounded-xl shadow-[4px_4px_8px_#cfd4db,-4px_-4px_8px_#ffffff]"
+
   if (isLoading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="neumorphic-card p-6">
+        <div className={neumorphicCard + " p-6"}>
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-muted rounded-full"></div>
             <div className="space-y-2">
@@ -81,7 +120,7 @@ export function UserProfile() {
             </div>
           </div>
         </div>
-        <div className="neumorphic-card p-6">
+        <div className={neumorphicCard + " p-6"}>
           <div className="space-y-4">
             <div className="h-4 bg-muted rounded w-full"></div>
             <div className="h-4 bg-muted rounded w-3/4"></div>
@@ -108,11 +147,11 @@ export function UserProfile() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       {/* Profile Header */}
-      <Card className="neumorphic-card">
+      <Card className={neumorphicCard}>
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
-              <Avatar className="w-16 h-16 neumorphic-element">
+              <Avatar className={"w-16 h-16 " + neumorphicInset}>
                 <AvatarFallback className="text-lg font-semibold bg-primary text-primary-foreground">
                   {getInitials(user.firstName, user.lastName)}
                 </AvatarFallback>
@@ -128,7 +167,7 @@ export function UserProfile() {
                 </Badge>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="neumorphic-button bg-transparent">
+            <Button variant="outline" size="sm" className={neumorphicButton + " bg-transparent"}>
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </Button>
@@ -136,8 +175,31 @@ export function UserProfile() {
         </CardContent>
       </Card>
 
+      {/* Sales Target Section */}
+      <Card className={neumorphicCard}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-green-700">
+            <TrendingUp className="w-5 h-5" />
+            Sales Target
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className={neumorphicInset + " p-6 flex items-center justify-center"}>
+            {salesLoading ? (
+              <span className="text-gray-400 animate-pulse">Loading...</span>
+            ) : salesTarget !== null ? (
+              <span className="text-2xl font-bold text-green-700">
+                ${salesTarget.toLocaleString()}
+              </span>
+            ) : (
+              <span className="text-red-500">No target found</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Contact Information */}
-      <Card className="neumorphic-card">
+      <Card className={neumorphicCard}>
         <CardHeader>
           <CardTitle className="flex items-center">
             <Mail className="w-5 h-5 mr-2 text-primary" />
@@ -145,7 +207,7 @@ export function UserProfile() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="neumorphic-inset p-4 rounded-lg">
+          <div className={neumorphicInset + " p-4"}>
             <div className="flex items-center space-x-3">
               <Mail className="w-4 h-4 text-muted-foreground" />
               <div>
@@ -158,7 +220,7 @@ export function UserProfile() {
       </Card>
 
       {/* Work Information */}
-      <Card className="neumorphic-card">
+      <Card className={neumorphicCard}>
         <CardHeader>
           <CardTitle className="flex items-center">
             <Building className="w-5 h-5 mr-2 text-primary" />
@@ -167,7 +229,7 @@ export function UserProfile() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="neumorphic-inset p-4 rounded-lg">
+            <div className={neumorphicInset + " p-4"}>
               <div className="flex items-center space-x-3">
                 <Building className="w-4 h-4 text-muted-foreground" />
                 <div>
@@ -176,7 +238,7 @@ export function UserProfile() {
                 </div>
               </div>
             </div>
-            <div className="neumorphic-inset p-4 rounded-lg">
+            <div className={neumorphicInset + " p-4"}>
               <div className="flex items-center space-x-3">
                 <MapPin className="w-4 h-4 text-muted-foreground" />
                 <div>
@@ -186,7 +248,7 @@ export function UserProfile() {
               </div>
             </div>
           </div>
-          <div className="neumorphic-inset p-4 rounded-lg">
+          <div className={neumorphicInset + " p-4"}>
             <div className="flex items-center space-x-3">
               <MapPin className="w-4 h-4 text-muted-foreground" />
               <div>
@@ -199,12 +261,12 @@ export function UserProfile() {
       </Card>
 
       {/* Actions */}
-      <Card className="neumorphic-card">
+      <Card className={neumorphicCard}>
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <Button
               variant="outline"
-              className="flex-1 neumorphic-button bg-transparent"
+              className={"flex-1 " + neumorphicButton + " bg-transparent"}
               onClick={() => toast({ title: "Feature coming soon!" })}
             >
               <Edit className="w-4 h-4 mr-2" />

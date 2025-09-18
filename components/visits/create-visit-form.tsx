@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Building, Users, Clock, MapPin } from "lucide-react"
+import { Building, Users, Clock } from "lucide-react"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Preferences } from "@capacitor/preferences"
 
 interface CreateVisitFormProps {
   onSuccess: () => void
@@ -32,6 +33,16 @@ interface VisitFormData {
 
 const LOCAL_KEY = "pendingVisits"
 
+// Helper functions for Capacitor Preferences storage
+async function getPendingVisits(): Promise<any[]> {
+  const { value } = await Preferences.get({ key: LOCAL_KEY })
+  return value ? JSON.parse(value) : []
+}
+
+async function setPendingVisits(visits: any[]) {
+  await Preferences.set({ key: LOCAL_KEY, value: JSON.stringify(visits) })
+}
+
 export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   const [formData, setFormData] = useState<VisitFormData>({
     date: new Date().toISOString().split("T")[0],
@@ -49,38 +60,41 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
-  const [pendingVisits, setPendingVisits] = useState<any[]>([])
+  const [pendingVisits, setPendingVisitsState] = useState<any[]>([])
 
-  // Load pending visits from localStorage on mount
+  // Load pending visits from Preferences on mount
   useEffect(() => {
-    const stored = localStorage.getItem(LOCAL_KEY)
-    if (stored) setPendingVisits(JSON.parse(stored))
+    getPendingVisits().then(setPendingVisitsState)
   }, [])
 
-  // Sync pending visits when online
+  // Try to sync pending visits on mount and when online
   useEffect(() => {
     const syncPending = async () => {
-      if (navigator.onLine && pendingVisits.length > 0) {
+      const visitsToSync = await getPendingVisits()
+      if (navigator.onLine && visitsToSync.length > 0) {
         const failed: any[] = []
-        for (const visit of pendingVisits) {
+        for (const visit of visitsToSync) {
           try {
             await apiService.createVisit(visit)
           } catch (err) {
             failed.push(visit)
           }
         }
-        setPendingVisits(failed)
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(failed))
-        toast({
-          title: failed.length === 0 ? "Offline visits synced" : "Some visits failed to sync",
-          description: failed.length === 0 ? "All offline visits have been uploaded." : "Some offline visits could not be uploaded.",
-          variant: failed.length === 0 ? "default" : "destructive",
-        })
+        setPendingVisitsState(failed)
+        await setPendingVisits(failed)
+        if (visitsToSync.length > 0) {
+          toast({
+            title: failed.length === 0 ? "Offline visits synced" : "Some visits failed to sync",
+            description: failed.length === 0 ? "All offline visits have been uploaded." : "Some offline visits could not be uploaded.",
+            variant: failed.length === 0 ? "default" : "destructive",
+          })
+        }
       }
     }
     window.addEventListener("online", syncPending)
+    syncPending()
     return () => window.removeEventListener("online", syncPending)
-  }, [pendingVisits, toast])
+  }, [toast])
 
   const updateField = (field: keyof VisitFormData, value: string | boolean) => {
     setFormData({ ...formData, [field]: value })
@@ -117,13 +131,13 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
         await apiService.createVisit(visitData)
         toast({
           title: "Visit scheduled",
-          description: "Your client visit has been successfully scheduled.",
+          description: "Your client visit has been successfully recorded.",
         })
         onSuccess()
       } else {
         const updatedPending = [...pendingVisits, visitData]
-        setPendingVisits(updatedPending)
-        localStorage.setItem(LOCAL_KEY, JSON.stringify(updatedPending))
+        setPendingVisitsState(updatedPending)
+        await setPendingVisits(updatedPending)
         toast({
           title: "Offline mode",
           description: "Visit saved locally and will upload when online.",
@@ -142,13 +156,13 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-6 max-w-2xl mx-auto bg-[#f1f4f9] p-6 rounded-2xl shadow-[8px_8px_16px_#d1d9e6,-8px_-8px_16px_#ffffff]">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Record Client Visit</h2>
-          <p className="text-muted-foreground">Create a new client visit:</p>
+          <h2 className="text-2xl font-bold text-[#00aeef]">Record Client Visit</h2>
+          <p className="text-gray-500">Create a new client visit:</p>
         </div>
-        <Button variant="outline" onClick={onCancel}>
+        <Button variant="outline" onClick={onCancel} className="h-10 px-6 rounded-xl shadow">
           Cancel
         </Button>
       </div>
@@ -353,14 +367,20 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
       
 
         <div className="flex gap-4">
-          <Button type="submit" className="flex-1" disabled={isSubmitting}>
-            {isSubmitting ? "Scheduling..." : "Schedule Visit"}
+          <Button type="submit" className="flex-1 h-10 px-6 bg-[#00aeef] text-white rounded-xl shadow hover:shadow-md transition" disabled={isSubmitting}>
+            {isSubmitting ? "Recording..." : "Record Visit"}
           </Button>
-          <Button type="button" variant="outline" onClick={onCancel}>
+          <Button type="button" variant="outline" onClick={onCancel} className="h-10 px-6 rounded-xl shadow">
             Cancel
           </Button>
         </div>
       </form>
+      {/* Show pending visits badge/message */}
+      {pendingVisits.length > 0 && (
+        <div className="text-xs text-yellow-600 mt-2">
+          {pendingVisits.length} visit(s) pending upload. They will sync automatically when you are online.
+        </div>
+      )}
     </div>
   )
 }

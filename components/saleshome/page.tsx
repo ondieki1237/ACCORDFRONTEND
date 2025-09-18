@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CheckCircle, Clock } from "lucide-react";
 import { authService, type User } from "@/lib/auth";
 import { VisitList } from "@/components/visits/visit-list";
 import { TrailList } from "@/components/trails/trail-list";
@@ -15,6 +16,8 @@ interface Quotation {
   hospital: string;
   equipmentRequired: string;
   responded: boolean;
+  status?: string;
+  response?: any;
   createdAt: string;
 }
 
@@ -129,44 +132,58 @@ export default function SalesDashboard() {
             </div>
           ) : (
             <div className="space-y-2">
-              {quotations.map((q) => (
-                <div
-                  key={q._id}
-                  className="flex items-center justify-between px-3 py-2 rounded-xl bg-white shadow-inner"
-                >
-                  <div>
-                    <div className="font-medium text-sm">{q.hospital}</div>
-                    <div className="text-xs text-gray-500">
-                      {q.equipmentRequired}
+              {quotations.map((q) => {
+                const isResponded =
+                  q.status === "responded" || !!q.response || q.responded;
+                return (
+                  <div
+                    key={q._id}
+                    className={`flex items-center justify-between px-3 py-2 rounded-xl bg-white shadow-inner transition ${
+                      isResponded
+                        ? "border-2 border-green-400 bg-green-50 shadow-green-100"
+                        : ""
+                    }`}
+                  >
+                    <div>
+                      <div className="font-medium text-sm">{q.hospital}</div>
+                      <div className="text-xs text-gray-500">
+                        {q.equipmentRequired}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {new Date(q.createdAt).toLocaleDateString()}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-400">
-                      {new Date(q.createdAt).toLocaleDateString()}
+                    <div className="flex items-center gap-2">
+                      {isResponded ? (
+                        <>
+                          <CheckCircle className="text-green-600 w-5 h-5" />
+                          <span className="text-xs text-green-600 font-semibold">
+                            Responded
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="text-gray-400 w-5 h-5" />
+                          <span className="text-xs text-gray-400">Pending</span>
+                        </>
+                      )}
+                      <Checkbox
+                        checked={checked[q._id] ?? isResponded}
+                        onCheckedChange={() =>
+                          setChecked((prev) => ({
+                            ...prev,
+                            [q._id]: !(prev[q._id] ?? isResponded),
+                          }))
+                        }
+                        disabled={!isResponded}
+                        className={`border-2 ${
+                          isResponded ? "border-green-400" : "border-gray-300"
+                        }`}
+                      />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={checked[q._id] ?? q.responded}
-                      onCheckedChange={() =>
-                        setChecked((prev) => ({
-                          ...prev,
-                          [q._id]: !(prev[q._id] ?? q.responded),
-                        }))
-                      }
-                      disabled={!q.responded}
-                      className={`border-2 ${
-                        q.responded ? "border-green-400" : "border-gray-300"
-                      }`}
-                    />
-                    <span
-                      className={`text-xs ${
-                        q.responded ? "text-green-600" : "text-gray-400"
-                      }`}
-                    >
-                      {q.responded ? "Responded" : "Pending"}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -200,12 +217,30 @@ export default function SalesDashboard() {
       <div className="mt-4">
         {activeTab === "visits" && (
           <div className="space-y-4">
-            <VisitList />
+            <VisitList
+              onCreateVisit={() => {
+                setActiveTab("visits");
+                router.push("/visits/new");
+              }}
+              onViewVisit={(visit) => {
+                setActiveTab("visits");
+                router.push(`/visits/${visit._id}`);
+              }}
+            />
           </div>
         )}
         {activeTab === "trails" && (
           <div className="space-y-4">
-            <TrailList />
+            <TrailList
+              onCreateTrail={() => {
+                setActiveTab("trails");
+                router.push("/trails/new");
+              }}
+              onViewTrail={(trail) => {
+                setActiveTab("trails");
+                router.push(`/trails/${trail._id}`);
+              }}
+            />
           </div>
         )}
       </div>
