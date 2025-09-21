@@ -6,10 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle, Clock } from "lucide-react";
+import { CheckCircle, Clock, TrendingUp, Upload, FileText } from "lucide-react";
 import { authService, type User } from "@/lib/auth";
 import { VisitList } from "@/components/visits/visit-list";
 import { TrailList } from "@/components/trails/trail-list";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 interface Quotation {
   _id: string;
@@ -21,16 +24,38 @@ interface Quotation {
   createdAt: string;
 }
 
+interface Report {
+  _id: string;
+  weekStart: string;
+  weekEnd: string;
+  status: string;
+  createdAt: string;
+  fileUrl?: string; // Assuming backend returns a URL to the PDF
+}
+
 export default function SalesDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"visits" | "trails">("visits");
+  const [activeTab, setActiveTab] = useState<"reports" | "visits" | "trails">("reports"); // Changed default to "reports"
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [quotationsLoading, setQuotationsLoading] = useState(true);
   const [quotationsError, setQuotationsError] = useState<string | null>(null);
   const [checked, setChecked] = useState<{ [id: string]: boolean }>({});
+  const [salesSummary, setSalesSummary] = useState<{
+    totalSales: number;
+    totalTarget: number;
+  } | null>(null);
+  const [salesLoading, setSalesLoading] = useState(true);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsVisibleCount, setReportsVisibleCount] = useState(3); // show max 3 initially
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [weekStart, setWeekStart] = useState("");
+  const [weekEnd, setWeekEnd] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const router = useRouter();
+  const { toast } = useToast();
 
   // Fetch user data
   useEffect(() => {
@@ -76,6 +101,169 @@ export default function SalesDashboard() {
     fetchQuotations();
   }, []);
 
+  // Fetch sales summary
+  useEffect(() => {
+    const fetchSalesSummary = async () => {
+      setSalesLoading(true);
+      try {
+        const token = localStorage.getItem("accessToken");
+        const res = await fetch("http://localhost:5000/api/sales/summary", {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) throw new Error("Failed to fetch sales summary");
+        const data = await res.json();
+        setSalesSummary({
+          totalSales: data.data?.totalSales ?? 0,
+          totalTarget: data.data?.totalTarget ?? 0,
+        });
+      } catch {
+        setSalesSummary(null);
+      } finally {
+        setSalesLoading(false);
+      }
+    };
+    fetchSalesSummary();
+  }, []);
+
+  // Fetch reports when reports tab is active
+  useEffect(() => {
+    if (activeTab === "reports") {
+      fetchReports();
+    }
+  }, [activeTab]);
+
+  const fetchReports = async () => {
+    setReportsLoading(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch("http://localhost:5000/api/reports/my", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) throw new Error("Failed to fetch reports");
+      const data = await res.json();
+      setReports(Array.isArray(data.data) ? data.data : []);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Could not load reports.",
+        variant: "destructive",
+      });
+      setReports([]);
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  const handleUploadReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile || !weekStart || !weekEnd) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all fields and select a PDF file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadLoading(true);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const formData = new FormData();
+      formData.append("report", selectedFile);
+      formData.append("weekStart", weekStart);
+      formData.append("weekEnd", weekEnd);
+
+      const res = await fetch("http://localhost:5000/api/reports", {
+        method: "POST",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("Failed to upload report");
+
+      toast({
+        title: "Report uploaded",
+        description: "Your weekly report has been submitted successfully.",
+      });
+
+      setSelectedFile(null);
+      setWeekStart("");
+      setWeekEnd("");
+      fetchReports(); // Refresh the list
+    } catch (err) {
+      toast({
+        title: "Upload failed",
+        description: "Could not upload the report. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  // Improved download: try to follow redirect (if backend redirects to cloudinary),
+  // otherwise download blob and save with a filename (uses Authorization header).
+  const handleDownloadReport = async (reportId: string, preferredName?: string) => {
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`http://localhost:5000/api/reports/${reportId}/download`, {
+        method: "GET",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        redirect: "follow",
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => res.statusText);
+        throw new Error(errText || `HTTP ${res.status}`);
+      }
+
+      // If the fetch followed a redirect to Cloudinary, `res.url` will be the final URL.
+      // Let the browser navigate to that final URL to allow native download handling.
+      if (res.redirected && res.url) {
+        // use a full navigation so Cloudinary's fl_attachment triggers download
+        window.location.href = res.url;
+        return;
+      }
+
+      // Otherwise get blob and force download
+      const blob = await res.blob();
+
+      // Try to get filename from content-disposition header
+      const contentDisp = res.headers.get("content-disposition") || "";
+      let filename = preferredName || `${reportId}.pdf`;
+      const match = contentDisp.match(/filename\*=UTF-8''([^;]+)/) || contentDisp.match(/filename="([^"]+)"/);
+      if (match && match[1]) {
+        filename = decodeURIComponent(match[1]);
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Report download error:", err);
+      toast({
+        title: "Download failed",
+        description: "Could not download the report. Try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh] flex-col gap-4">
@@ -111,6 +299,55 @@ export default function SalesDashboard() {
           Request Quotation
         </Button>
       </div>
+
+      {/* Sales Summary Card */}
+      <Card className="rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] bg-gray-50">
+        <CardHeader>
+          <CardTitle className="text-blue-700">Sales Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {salesLoading ? (
+            <div className="space-y-2">
+              {[...Array(2)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : salesSummary ? (
+            <>
+              <div className="flex justify-between text-sm text-gray-500 mb-2">
+                <div>
+                  Total Sales:{" "}
+                  <span className="font-medium text-gray-800">
+                    Ksh {salesSummary.totalSales.toFixed(2)}
+                  </span>
+                </div>
+                <div>
+                  Total Target:{" "}
+                  <span className="font-medium text-gray-800">
+                    Ksh {salesSummary.totalTarget.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              {/* Add progress bar */}
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                <div
+                  className="bg-blue-600 h-2.5 rounded-full"
+                  style={{
+                    width: `${Math.min((salesSummary.totalSales / salesSummary.totalTarget) * 100, 100)}%`,
+                  }}
+                ></div>
+              </div>
+              <div className="text-xs text-gray-500">
+                {((salesSummary.totalSales / salesSummary.totalTarget) * 100).toFixed(1)}% of target achieved
+              </div>
+            </>
+          ) : (
+            <div className="text-muted-foreground text-sm">
+              Sales data not available.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Quotations Card */}
       <Card className="rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] bg-gray-50">
@@ -189,8 +426,18 @@ export default function SalesDashboard() {
         </CardContent>
       </Card>
 
-      {/* Minimal Tabs */}
+      {/* Tabs - Reports first */}
       <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab("reports")}
+          className={`flex-1 py-2 text-center text-sm font-medium ${
+            activeTab === "reports"
+              ? "border-b-2 border-blue-500 text-blue-600"
+              : "text-gray-500"
+          }`}
+        >
+          Reports
+        </button>
         <button
           onClick={() => setActiveTab("visits")}
           className={`flex-1 py-2 text-center text-sm font-medium ${
@@ -215,6 +462,123 @@ export default function SalesDashboard() {
 
       {/* Tab Content */}
       <div className="mt-4">
+        {activeTab === "reports" && (
+          <div className="space-y-4">
+            {/* Upload Report Form */}
+            <Card className="rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] bg-gray-50">
+              <CardHeader>
+                <CardTitle className="text-blue-700 flex items-center gap-2">
+                  <Upload className="w-5 h-5" />
+                  Submit Weekly Report
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleUploadReport} className="space-y-4">
+                  <div>
+                    <Label htmlFor="weekStart">Week Start</Label>
+                    <Input
+                      id="weekStart"
+                      type="date"
+                      value={weekStart}
+                      onChange={(e) => setWeekStart(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="weekEnd">Week End</Label>
+                    <Input
+                      id="weekEnd"
+                      type="date"
+                      value={weekEnd}
+                      onChange={(e) => setWeekEnd(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="report">PDF Report</Label>
+                    <Input
+                      id="report"
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      required
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={uploadLoading}
+                    className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    {uploadLoading ? "Uploading..." : "Upload Report"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* My Reports List */}
+            <Card className="rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] bg-gray-50">
+              <CardHeader>
+                <CardTitle className="text-blue-700 flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  My Reports
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {reportsLoading ? (
+                  <div className="space-y-2">
+                    {[...Array(2)].map((_, i) => (
+                      <Skeleton key={i} className="h-10 w-full rounded-xl" />
+                    ))}
+                  </div>
+                ) : reports.length === 0 ? (
+                  <div className="text-muted-foreground text-sm">
+                    No reports submitted yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {reports.slice(0, reportsVisibleCount).map((report) => (
+                      <div
+                        key={report._id}
+                        className="flex items-center justify-between px-3 py-2 rounded-xl bg-white shadow-inner"
+                      >
+                        <div>
+                          <div className="font-medium text-sm">
+                            {new Date(report.weekStart).toLocaleDateString()} -{" "}
+                            {new Date(report.weekEnd).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Submitted: {new Date(report.createdAt).toLocaleDateString()}
+                          </div>
+                          <div className="text-xs text-gray-400">Status: {report.status}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDownloadReport(report._id, (report as any).fileName)}
+                          >
+                            Download
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {reports.length > reportsVisibleCount && (
+                      <div className="flex justify-center mt-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setReportsVisibleCount((c) => c + 1)}
+                        >
+                          View More
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
         {activeTab === "visits" && (
           <div className="space-y-4">
             <VisitList
@@ -226,6 +590,7 @@ export default function SalesDashboard() {
                 setActiveTab("visits");
                 router.push(`/visits/${visit._id}`);
               }}
+              showActions={false}
             />
           </div>
         )}
@@ -240,6 +605,7 @@ export default function SalesDashboard() {
                 setActiveTab("trails");
                 router.push(`/trails/${trail._id}`);
               }}
+              showActions={false}
             />
           </div>
         )}

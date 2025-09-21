@@ -86,7 +86,42 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
   const handleFollowUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Basic validation
+    if (!followUp.action || !followUp.assignedTo || !followUp.dueDate) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Debug: Log the data being sent
+    const dataToSend = {
+      visitId: visit.id,  // Ensure this is included and valid
+      action: followUp.action,
+      assignedTo: followUp.assignedTo,
+      dueDate: followUp.dueDate,
+      priority: followUp.priority,
+    }
+    console.log("Data being sent:", dataToSend)
+
     try {
+      const token = localStorage.getItem("accessToken")
+      const response = await fetch("http://localhost:5000/api/follow-ups", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(dataToSend),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || `HTTP ${response.status}`)
+      }
+
       toast({
         title: "Follow-up created",
         description: "Follow-up action has been scheduled successfully.",
@@ -100,9 +135,10 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
         priority: "medium",
       })
     } catch (error) {
+      console.error("Follow-up submission error:", error)
       toast({
         title: "Failed to create follow-up",
-        description: "Please try again later.",
+        description: error instanceof Error ? error.message : "Please try again later.",
         variant: "destructive",
       })
     }

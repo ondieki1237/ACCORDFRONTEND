@@ -21,12 +21,16 @@ interface Trail {
 interface TrailListProps {
   onCreateTrail: () => void;
   onViewTrail: (trail: Trail) => void;
+  showActions?: boolean;
 }
 
-export function TrailList({ onCreateTrail, onViewTrail }: TrailListProps) {
+const PAGE_SIZE = 8;
+
+export function TrailList({ onCreateTrail, onViewTrail, showActions = true }: TrailListProps) {
   const [trails, setTrails] = useState<Trail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUserSync());
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -98,21 +102,26 @@ export function TrailList({ onCreateTrail, onViewTrail }: TrailListProps) {
     );
   }
 
+  const visibleTrails = trails.slice(0, visibleCount);
+  const hasMore = trails.length > visibleCount;
+
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-bold text-gray-700">My Trails</h2>
-        <Button
-          onClick={onCreateTrail}
-          size="sm"
-          className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition"
-          style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          New Trail
-        </Button>
-      </div>
+      {/* Header - Only show if showActions is true */}
+      {showActions && (
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-bold text-gray-700">My Trails</h2>
+          <Button
+            onClick={onCreateTrail}
+            size="sm"
+            className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition"
+            style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            New Trail
+          </Button>
+        </div>
+      )}
 
       {trails.length === 0 ? (
         <Card
@@ -122,97 +131,112 @@ export function TrailList({ onCreateTrail, onViewTrail }: TrailListProps) {
           <CardContent className="flex flex-col items-center justify-center py-6">
             <MapPin className="h-12 w-12 text-gray-500 mb-2" />
             <p className="text-gray-500 mb-2">No trails recorded</p>
-            <Button
-              onClick={onCreateTrail}
-              size="sm"
-              className="rounded-xl bg-[#00aeef] text-white px-4 py-2 hover:shadow-lg transition"
-              style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-            >
-              Create Your First Trail
-            </Button>
+            {showActions && (
+              <Button
+                onClick={onCreateTrail}
+                size="sm"
+                className="rounded-xl bg-[#00aeef] text-white px-4 py-2 hover:shadow-lg transition"
+                style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+              >
+                Create Your First Trail
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
-          {trails.map((trail) => (
-            <Card
-              key={trail._id}
-              className="px-4 py-3 rounded-2xl bg-gray-50"
-              style={{ boxShadow: "8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff" }}
-            >
-              <div className="flex items-center justify-between">
-                {/* Left: Trail Info */}
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium text-base text-gray-700">
-                    Trail {trail._id.slice(-6)}
-                  </span>
-                  <div className="flex items-center gap-1 text-sm text-gray-500">
-                    <Calendar className="h-3 w-3" />
-                    {new Date(trail.createdAt).toLocaleDateString()}
+        <>
+          <div className="grid gap-3">
+            {visibleTrails.map((trail) => (
+              <Card
+                key={trail._id}
+                className="px-4 py-3 rounded-2xl bg-gray-50"
+                style={{ boxShadow: "8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff" }}
+              >
+                <div className="flex items-center justify-between">
+                  {/* Left: Trail Info */}
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium text-base text-gray-700">
+                      Trail {trail._id.slice(-6)}
+                    </span>
+                    <div className="flex items-center gap-1 text-sm text-gray-500">
+                      <Calendar className="h-3 w-3" />
+                      {new Date(trail.createdAt).toLocaleDateString()}
+                    </div>
+                    <div className="flex items-center gap-1 text-sm text-gray-500">
+                      <Clock className="h-3 w-3" />
+                      {calculateDuration(trail.totalDuration)}
+                    </div>
+                    <div className="flex items-center gap-1 text-sm text-gray-500">
+                      <MapPin className="h-3 w-3" />
+                      {calculateDistance(trail.totalDistance)}
+                    </div>
+                    <Badge
+                      className="rounded-full px-2 py-1 text-xs mt-1 w-fit bg-gray-100 text-gray-800"
+                    >
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {trail.path?.coordinates?.length || 0} points
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-1 text-sm text-gray-500">
-                    <Clock className="h-3 w-3" />
-                    {calculateDuration(trail.totalDuration)}
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-gray-500">
-                    <MapPin className="h-3 w-3" />
-                    {calculateDistance(trail.totalDistance)}
-                  </div>
-                  <Badge
-                    className="rounded-full px-2 py-1 text-xs mt-1 w-fit bg-gray-100 text-gray-800"
-                  >
-                    <MapPin className="h-3 w-3 mr-1" />
-                    {trail.path?.coordinates?.length || 0} points
-                  </Badge>
-                </div>
-                {/* Right: Action Buttons */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onViewTrail(trail)}
-                    className="rounded-xl px-4 py-2 flex items-center gap-1 text-[#00aeef] bg-gray-50 hover:bg-gray-100 transition"
-                    style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-                  >
-                    <Eye className="h-4 w-4" />
-                    View
-                  </Button>
-                  {canEditRecords(currentUser) && (
+                  {/* Right: Action Buttons */}
+                  <div className="flex items-center gap-2">
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toast({
-                          title: "Edit feature",
-                          description: "Edit functionality coming soon.",
-                        });
-                      }}
-                      className="rounded-xl px-4 py-2 flex items-center gap-1 text-gray-700 bg-gray-50 hover:bg-gray-100 transition"
+                      onClick={() => onViewTrail(trail)}
+                      className="rounded-xl px-4 py-2 flex items-center gap-1 text-[#00aeef] bg-gray-50 hover:bg-gray-100 transition"
                       style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
                     >
-                      <Edit className="h-4 w-4" />
+                      <Eye className="h-4 w-4" />
+                      View
                     </Button>
-                  )}
-                  {canDeleteRecords(currentUser) && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Implement delete if needed
-                      }}
-                      className="rounded-xl px-4 py-2 flex items-center gap-1 text-red-600 bg-gray-50 hover:bg-gray-100 transition"
-                      style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
+                    {canEditRecords(currentUser) && showActions && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast({
+                            title: "Edit feature",
+                            description: "Edit functionality coming soon.",
+                          });
+                        }}
+                        className="rounded-xl px-4 py-2 flex items-center gap-1 text-gray-700 bg-gray-50 hover:bg-gray-100 transition"
+                        style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canDeleteRecords(currentUser) && showActions && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Implement delete if needed
+                        }}
+                        className="rounded-xl px-4 py-2 flex items-center gap-1 text-red-600 bg-gray-50 hover:bg-gray-100 transition"
+                        style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+          {hasMore && showActions && (
+            <div className="flex justify-center mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="rounded-xl px-6 py-2"
+              >
+                View More
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

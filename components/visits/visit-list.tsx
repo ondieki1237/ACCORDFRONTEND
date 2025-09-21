@@ -23,12 +23,16 @@ interface Visit {
 interface VisitListProps {
   onCreateVisit: () => void
   onViewVisit: (visit: Visit) => void
+  showActions?: boolean
 }
 
-export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
+const PAGE_SIZE = 8
+
+export function VisitList({ onCreateVisit, onViewVisit, showActions = true }: VisitListProps) {
   const [visits, setVisits] = useState<Visit[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUserSync())
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -101,20 +105,25 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
     )
   }
 
+  const visibleVisits = visits.slice(0, visibleCount)
+  const hasMore = visits.length > visibleCount
+
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-lg font-bold text-gray-700">My Visits</h2>
-        <Button
-          onClick={onCreateVisit}
-          size="sm"
-          className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition"
-          style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-        >
-          + New Visit
-        </Button>
-      </div>
+      {/* Header - Only show if showActions is true */}
+      {showActions && (
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-bold text-gray-700">My Visits</h2>
+          <Button
+            onClick={onCreateVisit}
+            size="sm"
+            className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition"
+            style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+          >
+            + New Visit
+          </Button>
+        </div>
+      )}
 
       {visits.length === 0 ? (
         <Card
@@ -123,57 +132,72 @@ export function VisitList({ onCreateVisit, onViewVisit }: VisitListProps) {
         >
           <CardContent className="flex flex-col items-center justify-center py-6">
             <p className="text-gray-500 mb-2">No visits scheduled</p>
-            <Button
-              onClick={onCreateVisit}
-              size="sm"
-              className="rounded-xl bg-[#00aeef] text-white px-4 py-2 hover:shadow-lg transition"
-              style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-            >
-              Schedule Visit
-            </Button>
+            {showActions && (
+              <Button
+                onClick={onCreateVisit}
+                size="sm"
+                className="rounded-xl bg-[#00aeef] text-white px-4 py-2 hover:shadow-lg transition"
+                style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+              >
+                Schedule Visit
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3">
-          {visits.map((visit) => {
-            const status = getVisitStatus(visit)
-            return (
-              <Card
-                key={visit._id}
-                className="px-4 py-3 rounded-2xl bg-gray-50 flex items-center justify-between"
-                style={{ boxShadow: "8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff" }}
-              >
-                <div className="flex items-center justify-between w-full">
-                  {/* Left: Date, Client Name, Status */}
-                  <div className="flex flex-col gap-1">
-                    <span className="font-medium text-base text-gray-700">
-                      {new Date(visit.date).toLocaleDateString()}
-                    </span>
-                    <span className="text-gray-500 text-sm">
-                      {visit.client?.name || "Unknown Client"}
-                    </span>
-                    <Badge
-                      className={`rounded-full px-2 py-1 text-xs mt-1 w-fit ${getStatusColor(status)}`}
+        <>
+          <div className="grid gap-3">
+            {visibleVisits.map((visit) => {
+              const status = getVisitStatus(visit)
+              return (
+                <Card
+                  key={visit._id}
+                  className="px-4 py-3 rounded-2xl bg-gray-50 flex items-center justify-between"
+                  style={{ boxShadow: "8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff" }}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    {/* Left: Date, Client Name, Status */}
+                    <div className="flex flex-col gap-1">
+                      <span className="font-medium text-base text-gray-700">
+                        {new Date(visit.date).toLocaleDateString()}
+                      </span>
+                      <span className="text-gray-500 text-sm">
+                        {visit.client?.name || "Unknown Client"}
+                      </span>
+                      <Badge
+                        className={`rounded-full px-2 py-1 text-xs mt-1 w-fit ${getStatusColor(status)}`}
+                      >
+                        {status}
+                      </Badge>
+                    </div>
+                    {/* Right: View Button */}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onViewVisit(visit)}
+                      className="rounded-xl px-4 py-2 flex items-center gap-1 text-[#00aeef] bg-gray-50 hover:bg-gray-100 transition"
+                      style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
                     >
-                      {status}
-                    </Badge>
+                      <Eye className="h-4 w-4" />
+                      View
+                    </Button>
                   </div>
-                  {/* Right: View Button */}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onViewVisit(visit)}
-                    className="rounded-xl px-4 py-2 flex items-center gap-1 text-[#00aeef] bg-gray-50 hover:bg-gray-100 transition"
-                    style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-                  >
-                    <Eye className="h-4 w-4" />
-                    View
-                  </Button>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
+                </Card>
+              )
+            })}
+          </div>
+          {hasMore && showActions && (
+            <div className="flex justify-center mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+                className="rounded-xl px-6 py-2"
+              >
+                View More
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

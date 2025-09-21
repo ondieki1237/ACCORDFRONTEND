@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { TrendingUp } from "lucide-react"
 
 export default function RequestQuotation() {
   const { toast } = useToast()
@@ -20,6 +21,8 @@ export default function RequestQuotation() {
     contactPhone: ""
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [salesSummary, setSalesSummary] = useState(null)
+  const [salesLoading, setSalesLoading] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -63,6 +66,38 @@ export default function RequestQuotation() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f1f4f9]">
+      <Card className="rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] bg-gray-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-green-700">
+            <TrendingUp className="w-5 h-5" />
+            Sales Summary
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-6 items-center justify-center py-2">
+            {salesLoading ? (
+              <span className="text-gray-400 animate-pulse">Loading...</span>
+            ) : salesSummary ? (
+              <>
+                <div className="flex flex-col items-center">
+                  <span className="text-xs text-muted-foreground">Total Sales</span>
+                  <span className="text-2xl font-bold text-green-700">
+                    Ksh{salesSummary.totalSales.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-xs text-muted-foreground">Target</span>
+                  <span className="text-2xl font-bold text-blue-700">
+                    Ksh{salesSummary.totalTarget.toLocaleString()}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <span className="text-red-500">No sales data found</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
       <Card className="w-full max-w-lg p-6 rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff]">
         <CardContent>
           <div className="flex items-center mb-4">
