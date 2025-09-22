@@ -13,6 +13,8 @@ import { TrailList } from "@/components/trails/trail-list";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"; // Assuming Radix UI Dialog is available
+import CreateReport from "@/components/saleshome/reportcreate";
 
 interface Quotation {
   _id: string;
@@ -54,6 +56,7 @@ export default function SalesDashboard() {
   const [weekStart, setWeekStart] = useState("");
   const [weekEnd, setWeekEnd] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showCreateReport, setShowCreateReport] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -206,61 +209,6 @@ export default function SalesDashboard() {
       });
     } finally {
       setUploadLoading(false);
-    }
-  };
-
-  // Improved download: try to follow redirect (if backend redirects to cloudinary),
-  // otherwise download blob and save with a filename (uses Authorization header).
-  const handleDownloadReport = async (reportId: string, preferredName?: string) => {
-    try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`http://localhost:5000/api/reports/${reportId}/download`, {
-        method: "GET",
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        redirect: "follow",
-      });
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => res.statusText);
-        throw new Error(errText || `HTTP ${res.status}`);
-      }
-
-      // If the fetch followed a redirect to Cloudinary, `res.url` will be the final URL.
-      // Let the browser navigate to that final URL to allow native download handling.
-      if (res.redirected && res.url) {
-        // use a full navigation so Cloudinary's fl_attachment triggers download
-        window.location.href = res.url;
-        return;
-      }
-
-      // Otherwise get blob and force download
-      const blob = await res.blob();
-
-      // Try to get filename from content-disposition header
-      const contentDisp = res.headers.get("content-disposition") || "";
-      let filename = preferredName || `${reportId}.pdf`;
-      const match = contentDisp.match(/filename\*=UTF-8''([^;]+)/) || contentDisp.match(/filename="([^"]+)"/);
-      if (match && match[1]) {
-        filename = decodeURIComponent(match[1]);
-      }
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Report download error:", err);
-      toast({
-        title: "Download failed",
-        description: "Could not download the report. Try again.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -464,54 +412,45 @@ export default function SalesDashboard() {
       <div className="mt-4">
         {activeTab === "reports" && (
           <div className="space-y-4">
-            {/* Upload Report Form */}
+            {/* Create Report Button */}
             <Card className="rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] bg-gray-50">
               <CardHeader>
                 <CardTitle className="text-blue-700 flex items-center gap-2">
-                  <Upload className="w-5 h-5" />
-                  Submit Weekly Report
+                  <FileText className="w-5 h-5" />
+                  Weekly Reports
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <form onSubmit={handleUploadReport} className="space-y-4">
-                  <div>
-                    <Label htmlFor="weekStart">Week Start</Label>
-                    <Input
-                      id="weekStart"
-                      type="date"
-                      value={weekStart}
-                      onChange={(e) => setWeekStart(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="weekEnd">Week End</Label>
-                    <Input
-                      id="weekEnd"
-                      type="date"
-                      value={weekEnd}
-                      onChange={(e) => setWeekEnd(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="report">PDF Report</Label>
-                    <Input
-                      id="report"
-                      type="file"
-                      accept=".pdf"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                      required
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    disabled={uploadLoading}
-                    className="w-full bg-blue-600 text-white hover:bg-blue-700"
-                  >
-                    {uploadLoading ? "Uploading..." : "Upload Report"}
-                  </Button>
-                </form>
+              <CardContent className="pt-0">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Dialog open={showCreateReport} onOpenChange={setShowCreateReport}>
+                    <DialogTrigger asChild>
+                      <Button className="flex-1 bg-blue-600 text-white hover:bg-blue-700">
+                        Create New Report
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Create Weekly Report</DialogTitle>
+                      </DialogHeader>
+                      <CreateReport 
+                        onClose={() => setShowCreateReport(false)} 
+                        onSuccess={() => {
+                          setShowCreateReport(false);
+                          fetchReports(); // Refresh the reports list
+                        }} 
+                      />
+                    </DialogContent>
+                  </Dialog>
+                  {reports.length > 0 && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveTab("reports")}
+                      className="flex-1"
+                    >
+                      View My Reports ({reports.length})
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -520,7 +459,7 @@ export default function SalesDashboard() {
               <CardHeader>
                 <CardTitle className="text-blue-700 flex items-center gap-2">
                   <FileText className="w-5 h-5" />
-                  My Reports
+                  My Submitted Reports
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -531,8 +470,9 @@ export default function SalesDashboard() {
                     ))}
                   </div>
                 ) : reports.length === 0 ? (
-                  <div className="text-muted-foreground text-sm">
-                    No reports submitted yet.
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No reports submitted yet. Create your first report above!</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -550,15 +490,6 @@ export default function SalesDashboard() {
                             Submitted: {new Date(report.createdAt).toLocaleDateString()}
                           </div>
                           <div className="text-xs text-gray-400">Status: {report.status}</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDownloadReport(report._id, (report as any).fileName)}
-                          >
-                            Download
-                          </Button>
                         </div>
                       </div>
                     ))}

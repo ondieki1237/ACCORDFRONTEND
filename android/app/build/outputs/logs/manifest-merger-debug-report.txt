@@ -15,6 +15,7 @@ ADDED from /home/seth/Documents/code/ACCORDFRONTEND/android/app/src/main/Android
 INJECTED from /home/seth/Documents/code/ACCORDFRONTEND/android/app/src/main/AndroidManifest.xml:2:1-41:12
 INJECTED from /home/seth/Documents/code/ACCORDFRONTEND/android/app/src/main/AndroidManifest.xml:2:1-41:12
 INJECTED from /home/seth/Documents/code/ACCORDFRONTEND/android/app/src/main/AndroidManifest.xml:2:1-41:12
+MERGED from [:capacitor-preferences] /home/seth/Documents/code/ACCORDFRONTEND/node_modules/@capacitor/preferences/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
 MERGED from [:capacitor-android] /home/seth/Documents/code/ACCORDFRONTEND/node_modules/@capacitor/android/capacitor/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-7:12
 MERGED from [:capacitor-cordova-android-plugins] /home/seth/Documents/code/ACCORDFRONTEND/android/capacitor-cordova-android-plugins/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:2:1-11:12
 MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /home/seth/.gradle/caches/8.11.1/transforms/16884767c054ac4cab0f70a5a4855d4d/transformed/appcompat-resources-1.7.0/AndroidManifest.xml:2:1-7:12
@@ -129,6 +130,8 @@ uses-sdk
 INJECTED from /home/seth/Documents/code/ACCORDFRONTEND/android/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/seth/Documents/code/ACCORDFRONTEND/android/app/src/main/AndroidManifest.xml
 INJECTED from /home/seth/Documents/code/ACCORDFRONTEND/android/app/src/main/AndroidManifest.xml
+MERGED from [:capacitor-preferences] /home/seth/Documents/code/ACCORDFRONTEND/node_modules/@capacitor/preferences/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
+MERGED from [:capacitor-preferences] /home/seth/Documents/code/ACCORDFRONTEND/node_modules/@capacitor/preferences/android/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
 MERGED from [:capacitor-android] /home/seth/Documents/code/ACCORDFRONTEND/node_modules/@capacitor/android/capacitor/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
 MERGED from [:capacitor-android] /home/seth/Documents/code/ACCORDFRONTEND/node_modules/@capacitor/android/capacitor/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:5:5-44
 MERGED from [:capacitor-cordova-android-plugins] /home/seth/Documents/code/ACCORDFRONTEND/android/capacitor-cordova-android-plugins/build/intermediates/merged_manifest/debug/processDebugManifest/AndroidManifest.xml:6:5-44

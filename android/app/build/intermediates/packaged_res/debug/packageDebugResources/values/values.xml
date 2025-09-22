@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FFFFFF</color>
-    <string name="app_name">ACCORD</string>
+    <string name="app_name">ACCORD Business</string>
     <string name="custom_url_scheme">com.ACCORD.business</string>
     <string name="package_name">com.ACCORD.business</string>
-    <string name="title_activity_main">ACCORD</string>
+    <string name="title_activity_main">ACCORD Business</string>
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
         
         <item name="colorPrimary">@color/colorPrimary</item>

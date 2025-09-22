@@ -30,3 +30,4 @@ com.ACCORD.business.app-debug-28 /home/seth/Documents/code/ACCORDFRONTEND/androi
 com.ACCORD.business.app-main-29 /home/seth/Documents/code/ACCORDFRONTEND/android/app/src/main/res
 com.ACCORD.business.app-debug-30 /home/seth/Documents/code/ACCORDFRONTEND/android/capacitor-cordova-android-plugins/build/intermediates/packaged_res/debug/packageDebugResources
 com.ACCORD.business.app-debug-31 /home/seth/Documents/code/ACCORDFRONTEND/node_modules/@capacitor/android/capacitor/build/intermediates/packaged_res/debug/packageDebugResources
+com.ACCORD.business.app-debug-32 /home/seth/Documents/code/ACCORDFRONTEND/node_modules/@capacitor/preferences/android/build/intermediates/packaged_res/debug/packageDebugResources

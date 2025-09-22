@@ -1,6 +1,6 @@
 {
 	"appId": "com.ACCORD.business",
-	"appName": "ACCORD",
+	"appName": "ACCORD Business",
 	"webDir": "out",
 	"server": {
 		"androidScheme": "https"
