@@ -58,10 +58,18 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#e0e5ec] p-4">
-      <Card className="w-full max-w-md neumorphic-card">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-[#00aeef]">ACCORD</CardTitle>
+    <div className="flex min-h-screen items-center justify-center bg-[#f0f4f8] p-4">
+      <Card className="w-full max-w-md neumorphic-card rounded-2xl shadow-[8px_8px_16px_#cdd4db,-8px_-8px_16px_#ffffff] border-0">
+        <CardHeader className="text-center space-y-2">
+          {/* Logo */}
+          <img
+            src="/accord-icon.png"
+            alt="ACCORD Logo"
+            className="w-16 h-16 mx-auto mb-2 drop-shadow-md"
+          />
+          <CardTitle className="text-3xl font-extrabold text-[#00aeef] tracking-wide">
+            ACCORD
+          </CardTitle>
           <CardDescription className="text-gray-600">Create your account</CardDescription>
         </CardHeader>
         <CardContent>
@@ -73,7 +81,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                   id="firstName"
                   value={formData.firstName}
                   onChange={(e) => updateField("firstName", e.target.value)}
-                  className="neumorphic-input"
+                  className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
                   required
                 />
               </div>
@@ -83,7 +91,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                   id="lastName"
                   value={formData.lastName}
                   onChange={(e) => updateField("lastName", e.target.value)}
-                  className="neumorphic-input"
+                  className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
                   required
                 />
               </div>
@@ -96,7 +104,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                 placeholder="EMP001"
                 value={formData.employeeId}
                 onChange={(e) => updateField("employeeId", e.target.value)}
-                className="neumorphic-input"
+                className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
                 required
               />
             </div>
@@ -109,7 +117,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                 placeholder="john@example.com"
                 value={formData.email}
                 onChange={(e) => updateField("email", e.target.value)}
-                className="neumorphic-input"
+                className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
                 required
               />
             </div>
@@ -121,7 +129,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                 type="password"
                 value={formData.password}
                 onChange={(e) => updateField("password", e.target.value)}
-                className="neumorphic-input"
+                className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
                 required
               />
             </div>
@@ -129,7 +137,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             <div className="space-y-2">
               <Label htmlFor="role" className="text-gray-700">Role</Label>
               <Select value={formData.role} onValueChange={(value) => updateField("role", value)}>
-                <SelectTrigger className="neumorphic-input">
+                <SelectTrigger className="neumorphic-input rounded-xl shadow-inner px-3 py-2">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -144,7 +152,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
               <div className="space-y-2">
                 <Label htmlFor="region" className="text-gray-700">Region</Label>
                 <Select value={formData.region} onValueChange={(value) => updateField("region", value)}>
-                  <SelectTrigger className="neumorphic-input">
+                  <SelectTrigger className="neumorphic-input rounded-xl shadow-inner px-3 py-2">
                     <SelectValue placeholder="Select county" />
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
@@ -164,7 +172,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                   placeholder="Your work location"
                   value={formData.territory}
                   onChange={(e) => updateField("territory", e.target.value)}
-                  className="neumorphic-input"
+                  className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
                   required
                 />
               </div>
@@ -173,7 +181,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             <div className="space-y-2">
               <Label htmlFor="department" className="text-gray-700">Department</Label>
               <Select value={formData.department} onValueChange={(value) => updateField("department", value)}>
-                <SelectTrigger className="neumorphic-input">
+                <SelectTrigger className="neumorphic-input rounded-xl shadow-inner px-3 py-2">
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
@@ -184,14 +192,18 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
               </Select>
             </div>
 
-            <Button type="submit" className="w-full neumorphic-button" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full neumorphic-button bg-[#00aeef] text-white font-semibold rounded-xl shadow-[4px_4px_8px_#cdd4db,-4px_-4px_8px_#ffffff] hover:bg-[#0097d6] transition-all"
+              disabled={isLoading}
+            >
               {isLoading ? "Creating account..." : "Create Account"}
             </Button>
 
             <Button
               type="button"
               variant="ghost"
-              className="w-full neumorphic-button text-gray-700"
+              className="w-full neumorphic-button text-gray-700 hover:text-[#00aeef] rounded-xl transition-all"
               onClick={onSwitchToLogin}
             >
               Already have an account? Sign in

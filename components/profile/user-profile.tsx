@@ -189,7 +189,7 @@ export function UserProfile() {
               <span className="text-gray-400 animate-pulse">Loading...</span>
             ) : salesTarget !== null ? (
               <span className="text-2xl font-bold text-green-700">
-                ${salesTarget.toLocaleString()}
+                Ksh {salesTarget.toLocaleString()}
               </span>
             ) : (
               <span className="text-red-500">No target found</span>

@@ -26,5 +26,10 @@
   },
   "ios": {
     "contentInset": "automatic"
+  },
+  "assets": {
+    "icon": {
+      "source": "asse/accord-icon.png"
+    }
   }
 }

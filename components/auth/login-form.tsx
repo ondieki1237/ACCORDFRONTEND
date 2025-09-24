@@ -51,9 +51,15 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f0f4f8]">
-      <Card className="w-full max-w-md mx-auto neumorphic-card">
-        <CardHeader className="text-center">
+    <div className="min-h-screen flex items-center justify-center bg-[#f0f4f8] p-4">
+      <Card className="w-full max-w-md mx-auto neumorphic-card rounded-2xl shadow-[8px_8px_16px_#cdd4db,-8px_-8px_16px_#ffffff] border-0">
+        <CardHeader className="text-center space-y-2">
+          {/* Logo */}
+          <img
+            src="/accord-icon.png"
+            alt="ACCORD Logo"
+            className="w-16 h-16 mx-auto mb-2 drop-shadow-md"
+          />
           <CardTitle className="text-3xl font-extrabold text-[#00aeef] tracking-wide">
             ACCORD
           </CardTitle>
@@ -75,7 +81,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
                 onChange={(e) =>
                   setCredentials({ ...credentials, email: e.target.value })
                 }
-                className="neumorphic-input"
+                className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
                 required
               />
             </div>
@@ -90,13 +96,13 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
                 onChange={(e) =>
                   setCredentials({ ...credentials, password: e.target.value })
                 }
-                className="neumorphic-input"
+                className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
                 required
               />
             </div>
             <Button
               type="submit"
-              className="w-full neumorphic-button bg-[#00aeef] text-white font-semibold hover:bg-[#0097d6] transition-all"
+              className="w-full neumorphic-button bg-[#00aeef] text-white font-semibold rounded-xl shadow-[4px_4px_8px_#cdd4db,-4px_-4px_8px_#ffffff] hover:bg-[#0097d6] transition-all"
               disabled={isLoading}
             >
               {isLoading ? "Signing in..." : "Sign In"}
@@ -104,7 +110,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
             <Button
               type="button"
               variant="ghost"
-              className="w-full neumorphic-button text-gray-700 hover:text-[#00aeef] transition-all"
+              className="w-full neumorphic-button text-gray-700 hover:text-[#00aeef] rounded-xl transition-all"
               onClick={onSwitchToRegister}
             >
               Don&apos;t have an account? Register

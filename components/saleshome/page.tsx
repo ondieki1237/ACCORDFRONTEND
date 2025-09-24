@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle, Clock, TrendingUp, Upload, FileText } from "lucide-react";
+import { CheckCircle, Clock, TrendingUp, Upload, FileText, MessageSquare } from "lucide-react";
 import { authService, type User } from "@/lib/auth";
 import { VisitList } from "@/components/visits/visit-list";
 import { TrailList } from "@/components/trails/trail-list";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"; // Assuming Radix UI Dialog is available
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import CreateReport from "@/components/saleshome/reportcreate";
 
 interface Quotation {
@@ -32,14 +32,14 @@ interface Report {
   weekEnd: string;
   status: string;
   createdAt: string;
-  fileUrl?: string; // Assuming backend returns a URL to the PDF
+  fileUrl?: string;
 }
 
 export default function SalesDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"reports" | "visits" | "trails">("reports"); // Changed default to "reports"
+  const [activeTab, setActiveTab] = useState<"reports" | "visits" | "trails" | "communications">("reports");
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [quotationsLoading, setQuotationsLoading] = useState(true);
   const [quotationsError, setQuotationsError] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export default function SalesDashboard() {
   const [salesLoading, setSalesLoading] = useState(true);
   const [reports, setReports] = useState<Report[]>([]);
   const [reportsLoading, setReportsLoading] = useState(false);
-  const [reportsVisibleCount, setReportsVisibleCount] = useState(3); // show max 3 initially
+  const [reportsVisibleCount, setReportsVisibleCount] = useState(3);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [weekStart, setWeekStart] = useState("");
   const [weekEnd, setWeekEnd] = useState("");
@@ -200,7 +200,7 @@ export default function SalesDashboard() {
       setSelectedFile(null);
       setWeekStart("");
       setWeekEnd("");
-      fetchReports(); // Refresh the list
+      fetchReports();
     } catch (err) {
       toast({
         title: "Upload failed",
@@ -276,7 +276,6 @@ export default function SalesDashboard() {
                   </span>
                 </div>
               </div>
-              {/* Add progress bar */}
               <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
                 <div
                   className="bg-blue-600 h-2.5 rounded-full"
@@ -374,7 +373,7 @@ export default function SalesDashboard() {
         </CardContent>
       </Card>
 
-      {/* Tabs - Reports first */}
+      {/* Tabs */}
       <div className="flex border-b border-gray-200">
         <button
           onClick={() => setActiveTab("reports")}
@@ -406,13 +405,22 @@ export default function SalesDashboard() {
         >
           Trails
         </button>
+        <button
+          onClick={() => setActiveTab("communications")}
+          className={`flex-1 py-2 text-center text-sm font-medium ${
+            activeTab === "communications"
+              ? "border-b-2 border-blue-500 text-blue-600"
+              : "text-gray-500"
+          }`}
+        >
+          Communications
+        </button>
       </div>
 
       {/* Tab Content */}
       <div className="mt-4">
         {activeTab === "reports" && (
           <div className="space-y-4">
-            {/* Create Report Button */}
             <Card className="rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] bg-gray-50">
               <CardHeader>
                 <CardTitle className="text-blue-700 flex items-center gap-2">
@@ -436,7 +444,7 @@ export default function SalesDashboard() {
                         onClose={() => setShowCreateReport(false)} 
                         onSuccess={() => {
                           setShowCreateReport(false);
-                          fetchReports(); // Refresh the reports list
+                          fetchReports();
                         }} 
                       />
                     </DialogContent>
@@ -454,7 +462,6 @@ export default function SalesDashboard() {
               </CardContent>
             </Card>
 
-            {/* My Reports List */}
             <Card className="rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] bg-gray-50">
               <CardHeader>
                 <CardTitle className="text-blue-700 flex items-center gap-2">
@@ -538,6 +545,34 @@ export default function SalesDashboard() {
               }}
               showActions={false}
             />
+          </div>
+        )}
+        {activeTab === "communications" && (
+          <div className="space-y-4">
+            <Card className="rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] bg-gray-50">
+              <CardHeader>
+                <CardTitle className="text-blue-700 flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Communications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
+                    onClick={() => router.push("/communications/personalized")}
+                  >
+                    Personalized Communication
+                  </Button>
+                  <Button
+                    className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
+                    onClick={() => router.push("/communications/group")}
+                  >
+                    Group Communication
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
