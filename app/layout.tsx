@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
 import QueryProvider from "../components/QueryProvider"
+import { ServiceWorkerRegistration } from "../components/service-worker-registration"
 
 export const metadata: Metadata = {
   title: "ACCORD Business Management",
@@ -56,6 +57,7 @@ export default function RootLayout({
         <link rel="icon" href="/accord-icon.png" />
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+        <ServiceWorkerRegistration />
         <QueryProvider>
           <Suspense fallback={null}>{children}</Suspense>
         </QueryProvider>

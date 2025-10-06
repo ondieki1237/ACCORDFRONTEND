@@ -4,6 +4,7 @@ import { useState } from "react"
 import { VisitList } from "./visit-list"
 import { CreateVisitForm } from "./create-visit-form"
 import { VisitDetail } from "./visit-detail"
+import { EngineerVisitForm } from "@/components/engineer/engineervisitform"
 
 interface Visit {
   id: string
@@ -19,7 +20,7 @@ interface Visit {
   status?: "scheduled" | "in-progress" | "completed" | "cancelled"
 }
 
-type ViewMode = "list" | "create" | "detail"
+type ViewMode = "list" | "create" | "detail" | "engineer"
 
 export function VisitManagement() {
   const [viewMode, setViewMode] = useState<ViewMode>("list")
@@ -29,7 +30,11 @@ export function VisitManagement() {
     setViewMode("create")
   }
 
-  const handleViewVisit = (visit: Visit) => {
+  const handleCreateEngineerVisit = () => {
+    setViewMode("engineer")
+  }
+
+  const handleViewVisit = (visit: any) => {
     setSelectedVisit(visit)
     setViewMode("detail")
   }
@@ -43,16 +48,22 @@ export function VisitManagement() {
     setViewMode("list")
   }
 
+  const handleEngineerVisitCreated = () => {
+    setViewMode("list")
+  }
+
   switch (viewMode) {
     case "create":
       return <CreateVisitForm onSuccess={handleVisitCreated} onCancel={handleBackToList} />
+    case "engineer":
+      return <EngineerVisitForm onSuccess={handleEngineerVisitCreated} onCancel={handleBackToList} />
     case "detail":
       return selectedVisit ? (
         <VisitDetail visit={selectedVisit} onBack={handleBackToList} />
       ) : (
-        <VisitList onCreateVisit={handleCreateVisit} onViewVisit={handleViewVisit} />
+        <VisitList onCreateVisit={handleCreateVisit} onCreateEngineerVisit={handleCreateEngineerVisit} onViewVisit={handleViewVisit} />
       )
     default:
-      return <VisitList onCreateVisit={handleCreateVisit} onViewVisit={handleViewVisit} />
+      return <VisitList onCreateVisit={handleCreateVisit} onCreateEngineerVisit={handleCreateEngineerVisit} onViewVisit={handleViewVisit} />
   }
 }

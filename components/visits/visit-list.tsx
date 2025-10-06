@@ -22,13 +22,14 @@ interface Visit {
 
 interface VisitListProps {
   onCreateVisit: () => void
+  onCreateEngineerVisit: () => void
   onViewVisit: (visit: Visit) => void
   showActions?: boolean
 }
 
 const PAGE_SIZE = 8
 
-export function VisitList({ onCreateVisit, onViewVisit, showActions = true }: VisitListProps) {
+export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, showActions = true }: VisitListProps) {
   const [visits, setVisits] = useState<Visit[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUserSync())
@@ -114,14 +115,24 @@ export function VisitList({ onCreateVisit, onViewVisit, showActions = true }: Vi
       {showActions && (
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-bold text-gray-700">My Visits</h2>
-          <Button
-            onClick={onCreateVisit}
-            size="sm"
-            className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition"
-            style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-          >
-            + New Visit
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={onCreateEngineerVisit}
+              size="sm"
+              className="rounded-xl px-4 py-2 bg-orange-500 text-white shadow-md hover:shadow-lg transition hover:bg-orange-600"
+              style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+            >
+              🔧 Engineer Visit
+            </Button>
+            <Button
+              onClick={onCreateVisit}
+              size="sm"
+              className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition"
+              style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+            >
+              + New Visit
+            </Button>
+          </div>
         </div>
       )}
 
@@ -133,14 +144,24 @@ export function VisitList({ onCreateVisit, onViewVisit, showActions = true }: Vi
           <CardContent className="flex flex-col items-center justify-center py-6">
             <p className="text-gray-500 mb-2">No visits scheduled</p>
             {showActions && (
-              <Button
-                onClick={onCreateVisit}
-                size="sm"
-                className="rounded-xl bg-[#00aeef] text-white px-4 py-2 hover:shadow-lg transition"
-                style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-              >
-                Schedule Visit
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={onCreateEngineerVisit}
+                  size="sm"
+                  className="rounded-xl bg-orange-500 text-white px-4 py-2 hover:shadow-lg transition hover:bg-orange-600"
+                  style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+                >
+                  🔧 Engineer Visit
+                </Button>
+                <Button
+                  onClick={onCreateVisit}
+                  size="sm"
+                  className="rounded-xl bg-[#00aeef] text-white px-4 py-2 hover:shadow-lg transition"
+                  style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+                >
+                  Schedule Visit
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>

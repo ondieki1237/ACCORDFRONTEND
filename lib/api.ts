@@ -193,6 +193,14 @@ class ApiService {
     });
   }
 
+  async createEngineerVisit(visitData: any): Promise<any> {
+    // Engineer visit data structure as used in the form
+    return this.makeRequest("/engineer-visits", {
+      method: "POST",
+      body: JSON.stringify(visitData),
+    });
+  }
+
   async deleteVisit(visitId: string): Promise<void> {
     return this.makeRequest(`/visits/${visitId}`, {
       method: "DELETE",
