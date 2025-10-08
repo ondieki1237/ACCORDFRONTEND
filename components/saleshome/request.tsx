@@ -30,7 +30,7 @@ export default function RequestQuotation() {
     setIsSubmitting(true);
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch("https://accordbackend.onrender.com/api/quotation", {
+      const response = await fetch("http://localhost:5000/api/quotation", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

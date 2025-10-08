@@ -4,7 +4,7 @@ import { useState } from "react"
 import { VisitList } from "./visit-list"
 import { CreateVisitForm } from "./create-visit-form"
 import { VisitDetail } from "./visit-detail"
-import { EngineerVisitForm } from "@/components/engineer/engineervisitform"
+import EngineerVisitForm from "@/components/visits/engineer/engineervisitform"
 
 interface Visit {
   id: string

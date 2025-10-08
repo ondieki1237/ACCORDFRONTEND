@@ -51,7 +51,7 @@ export function TrailList({ onCreateTrail, onViewTrail, showActions = true }: Tr
       try {
         setIsLoading(true);
         const token = localStorage.getItem("accessToken");
-        const response = await fetch("https://accordbackend.onrender.com/api/dashboard/my-trails", {
+        const response = await fetch("http://localhost:5000/api/dashboard/my-trails", {
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),

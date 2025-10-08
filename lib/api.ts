@@ -1,6 +1,8 @@
 import { authService } from "./auth"
 
-const API_BASE_URL = "https://accordbackend.onrender.com/api"
+// Allow overriding the API base URL via environment variable for different environments
+// Use NEXT_PUBLIC_ so it's available on both server and client where needed
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api"
 
 export interface DashboardOverview {
   totalVisits: number
@@ -46,6 +48,28 @@ export interface Visit {
   }
   visitPurpose: string
   contacts: { name: string; role: string }[]
+}
+
+export interface EngineeringService {
+  id?: string
+  date: string
+  facility: {
+    name: string
+    location: string
+  }
+  serviceType: string
+  machineDetails: string
+  conditionBefore?: string
+  conditionAfter?: string
+  otherPersonnel?: string
+  nextServiceDate: string
+  engineerInCharge: {
+    name: string
+    phone: string
+  }
+  createdBy?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 class ApiService {
@@ -199,6 +223,26 @@ class ApiService {
       method: "POST",
       body: JSON.stringify(visitData),
     });
+  }
+
+  // Create a new engineering service record (frontend form calls this)
+  async createEngineeringService(serviceData: Partial<EngineeringService>): Promise<EngineeringService> {
+    return this.makeRequest("/engineering-services", {
+      method: "POST",
+      body: JSON.stringify(serviceData),
+    });
+  }
+
+  // Fetch paginated engineering services
+  async getEngineeringServices(page = 1, limit = 20, filters: Record<string, string> = {}): Promise<any> {
+    const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() })
+    Object.entries(filters).forEach(([k, v]) => params.append(k, v))
+    return this.makeRequest(`/engineering-services?${params.toString()}`)
+  }
+
+  // Get a single engineering service by id
+  async getEngineeringServiceById(id: string): Promise<EngineeringService> {
+    return this.makeRequest(`/engineering-services/${id}`)
   }
 
   async deleteVisit(visitId: string): Promise<void> {

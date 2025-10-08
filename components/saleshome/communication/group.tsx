@@ -71,7 +71,7 @@ export default function GroupCommunication() {
     try {
       const token = localStorage.getItem("accessToken");
       const params = new URLSearchParams({ limit: "50" });
-      const url = `https://accordbackend.onrender.com/api/communications/group?${params.toString()}`;
+      const url = `http://localhost:5000/api/communications/group?${params.toString()}`;
 
       const res = await fetch(url, {
         headers: {
@@ -90,7 +90,7 @@ export default function GroupCommunication() {
         !msg.readBy?.includes(user?._id) && msg.sender._id !== user?._id
       );
       for (const msg of unreadMessages) {
-        await fetch(`https://accordbackend.onrender.com/api/communications/${msg._id}/read`, {
+        await fetch(`http://localhost:5000/api/communications/${msg._id}/read`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -166,7 +166,7 @@ export default function GroupCommunication() {
         attachments: [] as any[],
       };
 
-      const res = await fetch("https://accordbackend.onrender.com/api/communications", {
+      const res = await fetch("http://localhost:5000/api/communications", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

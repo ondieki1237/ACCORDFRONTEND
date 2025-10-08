@@ -73,7 +73,7 @@ The app includes Progressive Web App (PWA) capabilities:
 
 ## API Integration
 
-The app connects to the ACCORD backend API at `https://accordbackend.onrender.com/api` with endpoints for:
+The app connects to the ACCORD backend API at `http://localhost:5000/api` with endpoints for:
 - Authentication (`/auth/*`)
 - Dashboard data (`/dashboard/*`)
 - Trail management (`/trails`)

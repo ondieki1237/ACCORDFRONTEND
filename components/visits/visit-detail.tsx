@@ -108,7 +108,7 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
 
     try {
       const token = localStorage.getItem("accessToken")
-      const response = await fetch("https://accordbackend.onrender.com/api/follow-ups", {
+      const response = await fetch("http://localhost:5000/api/follow-ups", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

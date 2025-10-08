@@ -9,6 +9,7 @@ import { Eye } from "lucide-react"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { authService } from "@/lib/auth"
+import CreateEngineeringServiceForm from "@/components/visits/engineer/engineervisitform"
 
 interface Visit {
   _id: string
@@ -34,6 +35,7 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
   const [isLoading, setIsLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUserSync())
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+  const [showEngineerForm, setShowEngineerForm] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
       try {
         setIsLoading(true)
         const token = localStorage.getItem("accessToken")
-        const response = await fetch("https://accordbackend.onrender.com/api/dashboard/my-visits", {
+        const response = await fetch("http://localhost:5000/api/dashboard/my-visits", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -117,7 +119,10 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
           <h2 className="text-lg font-bold text-gray-700">My Visits</h2>
           <div className="flex gap-2">
             <Button
-              onClick={onCreateEngineerVisit}
+              onClick={() => {
+                setShowEngineerForm(true)
+                onCreateEngineerVisit && onCreateEngineerVisit()
+              }}
               size="sm"
               className="rounded-xl px-4 py-2 bg-orange-500 text-white shadow-md hover:shadow-lg transition hover:bg-orange-600"
               style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
@@ -146,7 +151,10 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
             {showActions && (
               <div className="flex gap-2">
                 <Button
-                  onClick={onCreateEngineerVisit}
+                    onClick={() => {
+                      setShowEngineerForm(true)
+                      onCreateEngineerVisit && onCreateEngineerVisit()
+                    }}
                   size="sm"
                   className="rounded-xl bg-orange-500 text-white px-4 py-2 hover:shadow-lg transition hover:bg-orange-600"
                   style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
@@ -220,6 +228,37 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
           )}
         </>
       )}
+
+      {/* Engineer Visit Form Modal */}
+      {showEngineerForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowEngineerForm(false)} />
+          <div className="relative w-full max-w-3xl mx-4">
+            <CreateEngineeringServiceForm
+              onSuccess={() => {
+                toast({ title: "Service recorded", description: "Engineering service saved." })
+                setShowEngineerForm(false)
+              }}
+              onCancel={() => setShowEngineerForm(false)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function EngineerVisitsPage() {
+  return (
+    <div>
+      <CreateEngineeringServiceForm
+        onSuccess={() => {
+          // Handle success
+        }}
+        onCancel={() => {
+          // Handle cancel
+        }}
+      />
     </div>
   )
 }
