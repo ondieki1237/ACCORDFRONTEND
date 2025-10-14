@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Clock, Calendar, Plus, Edit, Trash2, Eye } from "lucide-react";
+import { MapPin, Clock, Calendar, Plus, Edit, Trash2, Eye, WifiOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/lib/auth";
 import { canEditRecords, canDeleteRecords } from "@/lib/permissions";
@@ -16,6 +16,7 @@ interface Trail {
   totalDistance?: number;
   totalDuration?: number;
   createdAt: string;
+  _createdOffline?: boolean;
 }
 
 interface TrailListProps {
@@ -51,7 +52,7 @@ export function TrailList({ onCreateTrail, onViewTrail, showActions = true }: Tr
       try {
         setIsLoading(true);
         const token = localStorage.getItem("accessToken");
-        const response = await fetch("http://localhost:5000/api/dashboard/my-trails", {
+        const response = await fetch("https://accordbackend.onrender.com/api/dashboard/my-trails", {
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -170,12 +171,23 @@ export function TrailList({ onCreateTrail, onViewTrail, showActions = true }: Tr
                       <MapPin className="h-3 w-3" />
                       {calculateDistance(trail.totalDistance)}
                     </div>
-                    <Badge
-                      className="rounded-full px-2 py-1 text-xs mt-1 w-fit bg-gray-100 text-gray-800"
-                    >
-                      <MapPin className="h-3 w-3 mr-1" />
-                      {trail.path?.coordinates?.length || 0} points
-                    </Badge>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge
+                        className="rounded-full px-2 py-1 text-xs w-fit bg-gray-100 text-gray-800"
+                      >
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {trail.path?.coordinates?.length || 0} points
+                      </Badge>
+                      {trail._createdOffline && (
+                        <Badge
+                          variant="outline"
+                          className="rounded-full px-2 py-1 text-xs w-fit border-orange-300 text-orange-600 bg-orange-50 flex items-center gap-1"
+                        >
+                          <WifiOff className="h-3 w-3" />
+                          Offline
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   {/* Right: Action Buttons */}
                   <div className="flex items-center gap-2">

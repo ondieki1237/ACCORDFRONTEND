@@ -7,6 +7,8 @@ import { Suspense } from "react"
 import "./globals.css"
 import QueryProvider from "../components/QueryProvider"
 import { ServiceWorkerRegistration } from "../components/service-worker-registration"
+import { OfflineIndicator } from "../components/mobile/offline-indicator-new"
+import { SyncButton } from "../components/mobile/sync-button"
 
 export const metadata: Metadata = {
   title: "ACCORD Business Management",
@@ -58,6 +60,8 @@ export default function RootLayout({
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <ServiceWorkerRegistration />
+        <OfflineIndicator />
+        <SyncButton />
         <QueryProvider>
           <Suspense fallback={null}>{children}</Suspense>
         </QueryProvider>

@@ -85,7 +85,7 @@ export default function SalesDashboard() {
       setQuotationsError(null);
       try {
         const token = localStorage.getItem("accessToken");
-        const res = await fetch("http://localhost:5000/api/quotation/my", {
+        const res = await fetch("https://accordbackend.onrender.com/api/quotation/my", {
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -110,7 +110,7 @@ export default function SalesDashboard() {
       setSalesLoading(true);
       try {
         const token = localStorage.getItem("accessToken");
-        const res = await fetch("http://localhost:5000/api/sales/summary", {
+        const res = await fetch("https://accordbackend.onrender.com/api/sales/summary", {
           headers: {
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -142,7 +142,7 @@ export default function SalesDashboard() {
     setReportsLoading(true);
     try {
       const token = localStorage.getItem("accessToken");
-      const res = await fetch("http://localhost:5000/api/reports/my", {
+      const res = await fetch("https://accordbackend.onrender.com/api/reports/my", {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -182,7 +182,7 @@ export default function SalesDashboard() {
       formData.append("weekStart", weekStart);
       formData.append("weekEnd", weekEnd);
 
-      const res = await fetch("http://localhost:5000/api/reports", {
+      const res = await fetch("https://accordbackend.onrender.com/api/reports", {
         method: "POST",
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

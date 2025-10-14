@@ -1,8 +1,9 @@
 import { authService } from "./auth"
+import { offlineStorage } from "./offline-storage"
 
 // Allow overriding the API base URL via environment variable for different environments
 // Use NEXT_PUBLIC_ so it's available on both server and client where needed
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://accordbackend.onrender.com/api"
 
 export interface DashboardOverview {
   totalVisits: number
@@ -167,62 +168,155 @@ class ApiService {
   }
 
   async getTrails(page = 1, limit = 20, startDate?: string, endDate?: string): Promise<any> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    })
-    if (startDate) params.append("startDate", startDate)
-    if (endDate) params.append("endDate", endDate)
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      })
+      if (startDate) params.append("startDate", startDate)
+      if (endDate) params.append("endDate", endDate)
 
-    return this.makeRequest(`/trails?${params.toString()}`)
+      const response = await this.makeRequest(`/trails?${params.toString()}`)
+      
+      // Cache successful response
+      if (response && Array.isArray(response.data)) {
+        await offlineStorage.cacheTrails(response.data)
+      }
+      
+      return response
+    } catch (error) {
+      console.warn('Failed to fetch trails from server, using cached data:', error)
+      
+      // Return cached data if offline
+      const cachedTrails = await offlineStorage.getCachedTrails()
+      return {
+        data: cachedTrails,
+        _fromCache: true,
+        _cacheTimestamp: Date.now()
+      }
+    }
   }
 
   async getVisits(page = 1, limit = 20, startDate?: string, endDate?: string): Promise<any> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    })
-    if (startDate) params.append("startDate", startDate)
-    if (endDate) params.append("endDate", endDate)
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      })
+      if (startDate) params.append("startDate", startDate)
+      if (endDate) params.append("endDate", endDate)
 
-    return this.makeRequest(`/visits?${params.toString()}`)
+      const response = await this.makeRequest(`/visits?${params.toString()}`)
+      
+      // Cache successful response
+      if (response && Array.isArray(response.data)) {
+        await offlineStorage.cacheVisits(response.data)
+      }
+      
+      return response
+    } catch (error) {
+      console.warn('Failed to fetch visits from server, using cached data:', error)
+      
+      // Return cached data if offline
+      const cachedVisits = await offlineStorage.getCachedVisits()
+      return {
+        data: cachedVisits,
+        _fromCache: true,
+        _cacheTimestamp: Date.now()
+      }
+    }
   }
 
   async createTrail(trailData: Omit<Trail, "id">): Promise<Trail> {
-    return this.makeRequest("/trails", {
-      method: "POST",
-      body: JSON.stringify(trailData),
-    })
+    try {
+      const response = await this.makeRequest("/trails", {
+        method: "POST",
+        body: JSON.stringify(trailData),
+      })
+      return response
+    } catch (error) {
+      console.warn('Failed to create trail online, saving offline:', error)
+      
+      // If offline, store in pending sync
+      await offlineStorage.addToPendingSync('trails', trailData)
+      
+      // Return a mock response with offline indicator
+      return {
+        ...trailData,
+        id: `offline_trail_${Date.now()}`,
+        _createdOffline: true
+      } as Trail
+    }
   }
 
   async createVisit(visitData: Omit<Visit, "id">): Promise<Visit> {
-    // Only send the fields the backend expects
-    const payload = {
-      date: visitData.date,
-      startTime: visitData.startTime,
-      client: {
-        name: visitData.client.name,
-        type: visitData.client.type,
-        location: visitData.client.location,
-      },
-      visitPurpose: visitData.visitPurpose,
-      contacts: (visitData.contacts || []).map(c => ({
-        name: c.name,
-        role: c.role,
-      })),
-    };
-    return this.makeRequest("/visits", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    try {
+      // Only send the fields the backend expects
+      const payload = {
+        date: visitData.date,
+        startTime: visitData.startTime,
+        client: {
+          name: visitData.client.name,
+          type: visitData.client.type,
+          location: visitData.client.location,
+        },
+        visitPurpose: visitData.visitPurpose,
+        contacts: (visitData.contacts || []).map(c => ({
+          name: c.name,
+          role: c.role,
+        })),
+      };
+      
+      const response = await this.makeRequest("/visits", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      return response
+    } catch (error) {
+      console.warn('Failed to create visit online, saving offline:', error)
+      
+      // If offline, store in pending sync
+      await offlineStorage.addToPendingSync('visits', visitData)
+      
+      // Return a mock response with offline indicator
+      return {
+        ...visitData,
+        id: `offline_visit_${Date.now()}`,
+        _createdOffline: true
+      } as Visit
+    }
   }
 
   async createEngineerVisit(visitData: any): Promise<any> {
-    // Engineer visit data structure as used in the form
-    return this.makeRequest("/engineer-visits", {
-      method: "POST",
-      body: JSON.stringify(visitData),
-    });
+    try {
+      // Engineer visit data structure as used in the form
+      return await this.makeRequest("/engineer-visits", {
+        method: "POST",
+        body: JSON.stringify(visitData),
+      });
+    } catch (error) {
+      console.warn('Failed to create engineer visit online, saving offline:', error)
+      
+      // If offline, store in pending sync
+      await offlineStorage.addToPendingSync('engineerVisits', visitData)
+      
+      // Return a mock response with offline indicator
+      const engineerVisit = {
+        id: `offline_engineer_visit_${Date.now()}`,
+        date: visitData.date,
+        startTime: visitData.startTime,
+        client: {
+          name: visitData.clientName,
+          type: "Engineer Visit",
+          location: visitData.clientLocation,
+        },
+        visitPurpose: visitData.visitPurpose,
+        contacts: visitData.contacts || [],
+        _createdOffline: true
+      }
+      
+      return engineerVisit
+    }
   }
 
   // Create a new engineering service record (frontend form calls this)

@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye } from "lucide-react"
+import { Eye, WifiOff } from "lucide-react"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { authService } from "@/lib/auth"
@@ -19,6 +19,7 @@ interface Visit {
   }
   status?: "scheduled" | "in-progress" | "completed" | "cancelled"
   revisitRequired?: boolean
+  _createdOffline?: boolean
 }
 
 interface VisitListProps {
@@ -56,7 +57,7 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
       try {
         setIsLoading(true)
         const token = localStorage.getItem("accessToken")
-        const response = await fetch("http://localhost:5000/api/dashboard/my-visits", {
+        const response = await fetch("https://accordbackend.onrender.com/api/dashboard/my-visits", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -135,7 +136,7 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
               className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition"
               style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
             >
-              + New Visit
+              + Sales Visit
             </Button>
           </div>
         </div>
@@ -147,10 +148,10 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
           style={{ boxShadow: "8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff" }}
         >
           <CardContent className="flex flex-col items-center justify-center py-6">
-            <p className="text-gray-500 mb-2">No visits scheduled</p>
+            <p className="text-gray-500 mb-2">No visits Recorded</p>
             {showActions && (
               <div className="flex gap-2">
-                <Button
+                {/* <Button
                     onClick={() => {
                       setShowEngineerForm(true)
                       onCreateEngineerVisit && onCreateEngineerVisit()
@@ -160,15 +161,15 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
                   style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
                 >
                   🔧 Engineer Visit
-                </Button>
-                <Button
+                </Button> */}
+                {/* <Button
                   onClick={onCreateVisit}
                   size="sm"
                   className="rounded-xl bg-[#00aeef] text-white px-4 py-2 hover:shadow-lg transition"
                   style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
                 >
                   Schedule Visit
-                </Button>
+                </Button> */}
               </div>
             )}
           </CardContent>
@@ -193,11 +194,22 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
                       <span className="text-gray-500 text-sm">
                         {visit.client?.name || "Unknown Client"}
                       </span>
-                      <Badge
-                        className={`rounded-full px-2 py-1 text-xs mt-1 w-fit ${getStatusColor(status)}`}
-                      >
-                        {status}
-                      </Badge>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge
+                          className={`rounded-full px-2 py-1 text-xs w-fit ${getStatusColor(status)}`}
+                        >
+                          {status}
+                        </Badge>
+                        {visit._createdOffline && (
+                          <Badge
+                            variant="outline"
+                            className="rounded-full px-2 py-1 text-xs w-fit border-orange-300 text-orange-600 bg-orange-50 flex items-center gap-1"
+                          >
+                            <WifiOff className="h-3 w-3" />
+                            Offline
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     {/* Right: View Button */}
                     <Button
