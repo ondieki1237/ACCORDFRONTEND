@@ -1,6 +1,6 @@
 import { authService } from "../auth"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://accordbackend.onrender.com/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://app.codewithseth.co.ke/api"
 
 async function makeRequest(path: string, options: RequestInit = {}) {
   const token = authService.getAccessToken()

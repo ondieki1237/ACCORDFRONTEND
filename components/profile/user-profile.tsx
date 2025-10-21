@@ -49,7 +49,7 @@ export function UserProfile() {
     try {
       setSalesLoading(true)
       const token = localStorage.getItem("accessToken")
-      const res = await fetch("https://accordbackend.onrender.com/api/sales/my", {
+      const res = await fetch("https://app.codewithseth.co.ke/api/sales/my", {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),

@@ -57,7 +57,7 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
       try {
         setIsLoading(true)
         const token = localStorage.getItem("accessToken")
-        const response = await fetch("https://accordbackend.onrender.com/api/dashboard/my-visits", {
+        const response = await fetch("https://app.codewithseth.co.ke/api/dashboard/my-visits", {
           method: "GET",
           headers: {
             "Content-Type": "application/json",

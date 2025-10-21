@@ -84,7 +84,7 @@ export default function PersonalizedCommunication() {
     setLoadingUsers(true);
     try {
       const token = localStorage.getItem("accessToken");
-      const res = await fetch("https://accordbackend.onrender.com/api/communications/users", {
+      const res = await fetch("https://app.codewithseth.co.ke/api/communications/users", {
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -114,7 +114,7 @@ export default function PersonalizedCommunication() {
           setCommunications([]);
           return;
         }
-        const url = `https://accordbackend.onrender.com/api/communications/personal/${otherUserId}`;
+        const url = `https://app.codewithseth.co.ke/api/communications/personal/${otherUserId}`;
         const res = await fetch(url, {
           headers: {
             "Content-Type": "application/json",
@@ -131,7 +131,7 @@ export default function PersonalizedCommunication() {
           !msg.readBy?.includes(user?._id) && msg.sender._id !== user?._id
         );
         for (const msg of unreadMessages) {
-          await fetch(`https://accordbackend.onrender.com/api/communications/${msg._id}/read`, {
+          await fetch(`https://app.codewithseth.co.ke/api/communications/${msg._id}/read`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -232,7 +232,7 @@ export default function PersonalizedCommunication() {
         content: optimistic.content,
       };
 
-      const res = await fetch("https://accordbackend.onrender.com/api/communications", {
+      const res = await fetch("https://app.codewithseth.co.ke/api/communications", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

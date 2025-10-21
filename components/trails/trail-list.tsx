@@ -75,10 +75,17 @@ export function TrailList({ onCreateTrail, onViewTrail, showActions = true }: Tr
         if (online) {
           try {
             // Use apiService which has offline fallback
-            serverTrails = await apiService.getTrails() || [];
+            const response = await apiService.getTrails();
+            
+            // Extract trails array from response
+            serverTrails = Array.isArray(response) 
+              ? response 
+              : (Array.isArray(response?.data) ? response.data : []);
             
             // Cache the server data
-            await offlineStorage.cacheTrails(serverTrails);
+            if (serverTrails.length > 0) {
+              await offlineStorage.cacheTrails(serverTrails);
+            }
           } catch (error) {
             console.warn("Failed to fetch from server, using cached data:", error);
             serverTrails = cachedTrails || [];
@@ -172,7 +179,9 @@ export function TrailList({ onCreateTrail, onViewTrail, showActions = true }: Tr
       }
       
       // Refresh the trail list
-      const updatedTrails = trails.filter(t => t._id !== trail._id);
+      const updatedTrails = Array.isArray(trails) 
+        ? trails.filter(t => t._id !== trail._id) 
+        : [];
       setTrails(updatedTrails);
     } catch (error) {
       console.error("Failed to delete trail:", error);
@@ -210,8 +219,10 @@ export function TrailList({ onCreateTrail, onViewTrail, showActions = true }: Tr
     );
   }
 
-  const visibleTrails = trails.slice(0, visibleCount);
-  const hasMore = trails.length > visibleCount;
+  // Ensure trails is always an array
+  const safeTrails = Array.isArray(trails) ? trails : [];
+  const visibleTrails = Array.isArray(trails) ? trails.slice(0, visibleCount) : [];
+  const hasMore = Array.isArray(trails) ? trails.length > visibleCount : false;
 
   return (
     <div className="space-y-4">
@@ -228,24 +239,24 @@ export function TrailList({ onCreateTrail, onViewTrail, showActions = true }: Tr
                   : 'border-orange-300 text-orange-600 bg-orange-50'
               }`}
             >
-              {isOnline ? 'Online' : 'Offline'} ({trails.length}/5)
+              {isOnline ? 'Online' : 'Offline'} ({safeTrails.length}/5)
             </Badge>
           </div>
           <Button
             onClick={onCreateTrail}
             size="sm"
-            disabled={trails.length >= 5}
+            disabled={safeTrails.length >= 5}
             className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
           >
             <Plus className="h-4 w-4 mr-1" />
-            {trails.length >= 5 ? 'Max Trails' : 'New Trail'}
+            {safeTrails.length >= 5 ? 'Max Trails' : 'New Trail'}
           </Button>
         </div>
       )}
 
       {/* Trail limit warning */}
-      {trails.length >= 5 && showActions && (
+      {safeTrails.length >= 5 && showActions && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4">
           <p className="text-sm text-amber-700">
             📍 Maximum of 5 trails can be stored locally. Delete old trails to record new ones.
@@ -262,7 +273,7 @@ export function TrailList({ onCreateTrail, onViewTrail, showActions = true }: Tr
         </div>
       )}
 
-      {trails.length === 0 ? (
+      {safeTrails.length === 0 ? (
         <Card
           className="rounded-2xl bg-gray-50 p-4"
           style={{ boxShadow: "8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff" }}

@@ -210,7 +210,7 @@ export default function CreateReport({ onClose, onSuccess }: CreateReportProps =
         isDraft: false
       };
 
-      const response = await fetch("https://accordbackend.onrender.com/api/reports", {
+      const response = await fetch("https://app.codewithseth.co.ke/api/reports", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -282,7 +282,7 @@ export default function CreateReport({ onClose, onSuccess }: CreateReportProps =
         isDraft: true
       };
 
-      const response = await fetch("https://accordbackend.onrender.com/api/reports/draft", {
+      const response = await fetch("https://app.codewithseth.co.ke/api/reports/draft", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

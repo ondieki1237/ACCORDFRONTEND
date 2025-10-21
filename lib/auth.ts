@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://accordbackend.onrender.com/api"
+const API_BASE_URL = "https://app.codewithseth.co.ke/api"
 
 export interface User {
   id: string

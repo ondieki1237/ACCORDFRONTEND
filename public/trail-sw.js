@@ -248,7 +248,7 @@ async function syncTrailData() {
       }
       
       // Attempt to save to API
-      const response = await fetch('https://accordbackend.onrender.com/api/trails', {
+      const response = await fetch('https://app.codewithseth.co.ke/api/trails', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -379,7 +379,7 @@ async function saveFinalTrailData(session) {
   }
   
   try {
-    const response = await fetch('https://accordbackend.onrender.com/api/trails', {
+    const response = await fetch('https://app.codewithseth.co.ke/api/trails', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

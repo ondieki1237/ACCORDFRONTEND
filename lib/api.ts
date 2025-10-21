@@ -3,7 +3,7 @@ import { offlineStorage } from "./offline-storage"
 
 // Allow overriding the API base URL via environment variable for different environments
 // Use NEXT_PUBLIC_ so it's available on both server and client where needed
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://accordbackend.onrender.com/api"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://app.codewithseth.co.ke/api"
 
 export interface DashboardOverview {
   totalVisits: number
