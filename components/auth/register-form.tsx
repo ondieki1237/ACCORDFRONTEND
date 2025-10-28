@@ -58,86 +58,96 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#f0f4f8] p-4">
-      <Card className="w-full max-w-md neumorphic-card rounded-2xl shadow-[8px_8px_16px_#cdd4db,-8px_-8px_16px_#ffffff] border-0">
+    <div className="flex min-h-screen items-center justify-center bg-white px-4 py-10">
+      <Card className="w-full max-w-lg border border-gray-100 shadow-md rounded-2xl">
         <CardHeader className="text-center space-y-2">
-          {/* Logo */}
           <img
             src="/accord-icon.png"
             alt="ACCORD Logo"
-            className="w-16 h-16 mx-auto mb-2 drop-shadow-md"
+            className="w-16 h-16 mx-auto mb-2"
           />
-          <CardTitle className="text-3xl font-extrabold text-[#00aeef] tracking-wide">
+          <CardTitle className="text-3xl font-semibold text-[#00aeef] tracking-wide">
             ACCORD
           </CardTitle>
-          <CardDescription className="text-gray-600">Create your account</CardDescription>
+          <CardDescription className="text-gray-500">
+            Create your employee account
+          </CardDescription>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-gray-700">First Name</Label>
+            {/* --- Name Section --- */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="firstName" className="text-sm text-gray-700">First Name</Label>
                 <Input
                   id="firstName"
+                  placeholder="John"
                   value={formData.firstName}
                   onChange={(e) => updateField("firstName", e.target.value)}
-                  className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
+                  className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-gray-700">Last Name</Label>
+              <div>
+                <Label htmlFor="lastName" className="text-sm text-gray-700">Last Name</Label>
                 <Input
                   id="lastName"
+                  placeholder="Doe"
                   value={formData.lastName}
                   onChange={(e) => updateField("lastName", e.target.value)}
-                  className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
+                  className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="employeeId" className="text-gray-700">Employee ID</Label>
-              <Input
-                id="employeeId"
-                placeholder="EMP001"
-                value={formData.employeeId}
-                onChange={(e) => updateField("employeeId", e.target.value)}
-                className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
-                required
-              />
+            {/* --- Employee & Email --- */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="employeeId" className="text-sm text-gray-700">Employee ID</Label>
+                <Input
+                  id="employeeId"
+                  placeholder="EMP001"
+                  value={formData.employeeId}
+                  onChange={(e) => updateField("employeeId", e.target.value)}
+                  className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="email" className="text-sm text-gray-700">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="john@example.com"
+                  value={formData.email}
+                  onChange={(e) => updateField("email", e.target.value)}
+                  className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
+                  required
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-700">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="john@example.com"
-                value={formData.email}
-                onChange={(e) => updateField("email", e.target.value)}
-                className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-gray-700">Password</Label>
+            {/* --- Password --- */}
+            <div>
+              <Label htmlFor="password" className="text-sm text-gray-700">Password</Label>
               <Input
                 id="password"
                 type="password"
+                placeholder="Enter strong password"
                 value={formData.password}
                 onChange={(e) => updateField("password", e.target.value)}
-                className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
+                className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="role" className="text-gray-700">Role</Label>
+            {/* --- Role --- */}
+            <div>
+              <Label htmlFor="role" className="text-sm text-gray-700">Role</Label>
               <Select value={formData.role} onValueChange={(value) => updateField("role", value)}>
-                <SelectTrigger className="neumorphic-input rounded-xl shadow-inner px-3 py-2">
+                <SelectTrigger className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]">
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -148,11 +158,12 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="region" className="text-gray-700">Region</Label>
+            {/* --- Region & Territory --- */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="region" className="text-sm text-gray-700">Region</Label>
                 <Select value={formData.region} onValueChange={(value) => updateField("region", value)}>
-                  <SelectTrigger className="neumorphic-input rounded-xl shadow-inner px-3 py-2">
+                  <SelectTrigger className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]">
                     <SelectValue placeholder="Select county" />
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
@@ -165,23 +176,24 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="territory" className="text-gray-700">Territory</Label>
+              <div>
+                <Label htmlFor="territory" className="text-sm text-gray-700">Territory</Label>
                 <Input
                   id="territory"
-                  placeholder="Your work location"
+                  placeholder="Work location"
                   value={formData.territory}
                   onChange={(e) => updateField("territory", e.target.value)}
-                  className="neumorphic-input rounded-xl shadow-inner px-3 py-2"
+                  className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="department" className="text-gray-700">Department</Label>
+            {/* --- Department --- */}
+            <div>
+              <Label htmlFor="department" className="text-sm text-gray-700">Department</Label>
               <Select value={formData.department} onValueChange={(value) => updateField("department", value)}>
-                <SelectTrigger className="neumorphic-input rounded-xl shadow-inner px-3 py-2">
+                <SelectTrigger className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]">
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
@@ -192,22 +204,26 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
               </Select>
             </div>
 
+            {/* --- Submit Button --- */}
             <Button
               type="submit"
-              className="w-full neumorphic-button bg-[#00aeef] text-white font-semibold rounded-xl shadow-[4px_4px_8px_#cdd4db,-4px_-4px_8px_#ffffff] hover:bg-[#0097d6] transition-all"
+              className="w-full bg-[#00aeef] text-white font-medium rounded-lg py-2 hover:bg-[#0097d6] transition"
               disabled={isLoading}
             >
               {isLoading ? "Creating account..." : "Create Account"}
             </Button>
 
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full neumorphic-button text-gray-700 hover:text-[#00aeef] rounded-xl transition-all"
-              onClick={onSwitchToLogin}
-            >
-              Already have an account? Sign in
-            </Button>
+            {/* --- Switch to Login --- */}
+            <p className="text-center text-sm text-gray-600">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={onSwitchToLogin}
+                className="text-[#00aeef] hover:underline"
+              >
+                Sign in
+              </button>
+            </p>
           </form>
         </CardContent>
       </Card>

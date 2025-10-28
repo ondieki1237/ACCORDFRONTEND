@@ -51,25 +51,26 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#f0f4f8] m-0 p-0">
-      <Card className="w-full max-w-md mx-auto rounded-2xl shadow-[8px_8px_16px_#cdd4db,-8px_-8px_16px_#ffffff] border-0">
-        <CardHeader className="text-center space-y-2">
+    <div className="flex items-center justify-center min-h-screen bg-[#f5f8fa] px-4">
+      <Card className="w-full max-w-md bg-white border-none shadow-md rounded-2xl">
+        <CardHeader className="text-center space-y-1">
           <img
             src="/accord-icon.png"
             alt="ACCORD Logo"
-            className="w-16 h-16 mx-auto mb-2 drop-shadow-md"
+            className="w-14 h-14 mx-auto mb-2"
           />
-          <CardTitle className="text-3xl font-extrabold text-[#00aeef] tracking-wide">
+          <CardTitle className="text-2xl font-semibold text-[#00aeef]">
             ACCORD
           </CardTitle>
-          <CardDescription className="text-gray-600">
+          <CardDescription className="text-gray-500">
             Sign in to your account
           </CardDescription>
         </CardHeader>
+
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <Label htmlFor="email" className="text-sm text-gray-700">
                 Email
               </Label>
               <Input
@@ -80,13 +81,13 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
                 onChange={(e) =>
                   setCredentials({ ...credentials, email: e.target.value })
                 }
-                className="rounded-xl shadow-inner px-3 py-2"
+                className="mt-1 rounded-lg border border-gray-200 focus:border-[#00aeef] focus:ring-[#00aeef]"
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+            <div>
+              <Label htmlFor="password" className="text-sm text-gray-700">
                 Password
               </Label>
               <Input
@@ -96,27 +97,29 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
                 onChange={(e) =>
                   setCredentials({ ...credentials, password: e.target.value })
                 }
-                className="rounded-xl shadow-inner px-3 py-2"
+                className="mt-1 rounded-lg border border-gray-200 focus:border-[#00aeef] focus:ring-[#00aeef]"
                 required
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full bg-[#00aeef] text-white font-semibold rounded-xl shadow-[4px_4px_8px_#cdd4db,-4px_-4px_8px_#ffffff] hover:bg-[#0097d6] transition-all"
+              className="w-full bg-[#00aeef] text-white font-medium rounded-lg py-2 hover:bg-[#0097d6] transition"
               disabled={isLoading}
             >
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
 
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full text-gray-700 hover:text-[#00aeef] rounded-xl transition-all"
-              onClick={onSwitchToRegister}
-            >
-              Don&apos;t have an account? Register
-            </Button>
+            <p className="text-center text-sm text-gray-600">
+              Don’t have an account?{" "}
+              <button
+                type="button"
+                onClick={onSwitchToRegister}
+                className="text-[#00aeef] hover:underline"
+              >
+                Register
+              </button>
+            </p>
           </form>
         </CardContent>
       </Card>
