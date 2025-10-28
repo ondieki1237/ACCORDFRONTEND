@@ -13,8 +13,10 @@ import { TrailList } from "@/components/trails/trail-list";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import dynamic from "next/dynamic";
 import CreateReport from "@/components/saleshome/reportcreate";
+const Planner = dynamic(() => import("@/components/saleshome/planner"), { ssr: false });
 
 interface Quotation {
   _id: string;
@@ -57,6 +59,7 @@ export default function SalesDashboard() {
   const [weekEnd, setWeekEnd] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showCreateReport, setShowCreateReport] = useState(false);
+  const [plannerOpen, setPlannerOpen] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -449,70 +452,34 @@ export default function SalesDashboard() {
                       />
                     </DialogContent>
                   </Dialog>
-                  {reports.length > 0 && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setActiveTab("reports")}
-                      className="flex-1"
-                    >
-                      View My Reports ({reports.length})
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff] bg-gray-50">
-              <CardHeader>
-                <CardTitle className="text-blue-700 flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  My Submitted Reports
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {reportsLoading ? (
-                  <div className="space-y-2">
-                    {[...Array(2)].map((_, i) => (
-                      <Skeleton key={i} className="h-10 w-full rounded-xl" />
-                    ))}
-                  </div>
-                ) : reports.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">No reports submitted yet. Create your first report above!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {reports.slice(0, reportsVisibleCount).map((report) => (
-                      <div
-                        key={report._id}
-                        className="flex items-center justify-between px-3 py-2 rounded-xl bg-white shadow-inner"
-                      >
-                        <div>
-                          <div className="font-medium text-sm">
-                            {new Date(report.weekStart).toLocaleDateString()} -{" "}
-                            {new Date(report.weekEnd).toLocaleDateString()}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Submitted: {new Date(report.createdAt).toLocaleDateString()}
-                          </div>
-                          <div className="text-xs text-gray-400">Status: {report.status}</div>
-                        </div>
-                      </div>
-                    ))}
-                    {reports.length > reportsVisibleCount && (
-                      <div className="flex justify-center mt-2">
+                    <div className="flex-1 flex gap-2">
+                      {reports.length > 0 && (
                         <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setReportsVisibleCount((c) => c + 1)}
+                          variant="outline"
+                          onClick={() => setActiveTab("reports")}
+                          className="flex-1"
                         >
-                          View More
+                          View My Reports ({reports.length})
                         </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
+                      )}
+                      <Dialog open={plannerOpen} onOpenChange={setPlannerOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="px-3">
+                            Open Planner
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto w-[95vw]">
+                          <DialogHeader>
+                            <DialogTitle>Weekly Travel Planner</DialogTitle>
+                            <DialogDescription>
+                              Plan your weekly travel schedule and submit it to your manager.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <Planner onSuccess={() => setPlannerOpen(false)} />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                </div>
               </CardContent>
             </Card>
           </div>

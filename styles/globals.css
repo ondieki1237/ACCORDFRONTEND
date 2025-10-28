@@ -123,3 +123,31 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Mobile-first: remove outer container margins/padding to create a full-bleed
+   experience on phones. Keep large-screen behavior intact. These rules target
+   Tailwind's `.container` utility and common utility combinations that add
+   padding (e.g. `p-4`) so pages feel simpler on mobile devices. */
+@media (max-width: 1023px) {
+  .container {
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* Override common utility combinations that appear on page wrappers */
+  .container.p-4,
+  .container.p-6,
+  .container.p-8,
+  main.container {
+    padding: 0 !important;
+  }
+
+  /* Sometimes components use px-* or space utilities on direct children; make
+     container children full-width by removing horizontal gaps where appropriate. */
+  .container > * {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+  }
+}

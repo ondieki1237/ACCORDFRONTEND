@@ -51,8 +51,8 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#f5f8fa] px-4">
-      <Card className="w-full max-w-md bg-white border-none shadow-md rounded-2xl">
+    <>
+      <Card className="w-full bg-white border-none shadow-md rounded-2xl">
         <CardHeader className="text-center space-y-1">
           <img
             src="/accord-icon.png"
@@ -123,6 +123,6 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
           </form>
         </CardContent>
       </Card>
-    </div>
+    </>
   )
 }

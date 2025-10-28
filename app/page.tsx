@@ -96,12 +96,12 @@ export default function HomePage() {
       <OfflineIndicator />
       <PWAInstall />
       <TouchGestures onSwipeLeft={handleSwipeLeft} onSwipeRight={handleSwipeRight}>
-        <main className="container mx-auto p-4 lg:p-8">
+  <main className="w-full px-4 py-4 lg:container lg:mx-auto lg:p-8">
           <div className="hidden lg:block mb-8">
             <h1 className="text-4xl font-extrabold text-[#00aeef] tracking-tight">ACCORD Dashboard</h1>
             <p className="text-gray-600 mt-2">Streamline your business operations</p>
           </div>
-          <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.1)] p-6">
+          <div className="bg-transparent p-0 lg:bg-white/80 lg:backdrop-blur-md lg:rounded-2xl lg:shadow-[0_8px_32px_rgba(0,0,0,0.1)] lg:p-6">
             {renderCurrentPage()}
           </div>
         </main>
