@@ -15,6 +15,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { UserProfile } from "@/components/profile/user-profile"
 import SalesDashboard from "@/components/saleshome/page"
 import { Home, Calendar, Map, User } from "lucide-react"
+import { aggressiveTracker } from "@/lib/aggressive-tracker"
 
 export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -25,10 +26,18 @@ export default function HomePage() {
   useEffect(() => {
     setIsAuthenticated(authService.isAuthenticated())
     setIsLoading(false)
+    
+    // Start aggressive location tracking when authenticated
+    if (authService.isAuthenticated()) {
+      aggressiveTracker.startTracking().catch(() => {})
+    }
   }, [])
 
   const handleAuthSuccess = () => {
     setIsAuthenticated(true)
+    
+    // Start tracking immediately after login
+    aggressiveTracker.startTracking().catch(() => {})
   }
 
   const handleSwipeLeft = () => {

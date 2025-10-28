@@ -8,9 +8,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { authService } from "@/lib/auth";
 
-// Use localhost:5000 for development (if backend is running locally), 
-// otherwise use deployed URL for production
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "https://app.codewithseth.co.ke/api";
+// Always use deployed API
+const API_BASE = "https://app.codewithseth.co.ke/api";
 
 interface DayPlan {
   day: string;

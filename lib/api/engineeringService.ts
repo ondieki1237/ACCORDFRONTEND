@@ -1,4 +1,7 @@
-import { authService } from "../auth"
+import { authService } from '../auth';
+
+// Always use deployed API
+const API_BASE_URL = "https://app.codewithseth.co.ke/api"ort { authService } from "../auth"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://app.codewithseth.co.ke/api"
 
