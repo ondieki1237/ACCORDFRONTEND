@@ -6,6 +6,7 @@ import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
 import { TrailManagement } from "@/components/trails/trail-management"
 import { VisitManagement } from "@/components/visits/visit-management"
+import { EngineerVisitManagement } from "@/components/visits/engineer-visit-management"
 import { PWAInstall } from "@/components/mobile/pwa-install"
 import { OfflineIndicator } from "@/components/mobile/offline-indicator"
 import { MobileOptimizations } from "@/components/mobile/mobile-optimizations"
@@ -14,30 +15,75 @@ import { authService } from "@/lib/auth"
 import { Toaster } from "@/components/ui/toaster"
 import { UserProfile } from "@/components/profile/user-profile"
 import SalesDashboard from "@/components/saleshome/page"
-import { Home, Calendar, Map, User } from "lucide-react"
+import EngineerDashboard from "@/components/saleshome/engineer-dashboard"
+import { Home, Calendar, Map, User, Wrench } from "lucide-react"
 import { aggressiveTracker } from "@/lib/aggressive-tracker"
+import { nativeBackgroundTracker } from "@/lib/native-background-tracker"
+import { Capacitor } from "@capacitor/core"
 
 export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState("dashboard")
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [isEngineer, setIsEngineer] = useState(false)
 
   useEffect(() => {
-    setIsAuthenticated(authService.isAuthenticated())
-    setIsLoading(false)
+    const checkAuth = async () => {
+      setIsAuthenticated(authService.isAuthenticated())
+      
+      // Get user data to check role
+      if (authService.isAuthenticated()) {
+        try {
+          const user = await authService.getCurrentUser()
+          setCurrentUser(user)
+          
+          // Check if user has engineer role
+          const userRole = user?.role?.toLowerCase() || ''
+          setIsEngineer(userRole.includes('engineer') || userRole === 'engineer')
+        } catch (error) {
+          console.error('Failed to get user:', error)
+        }
+      }
+      
+      setIsLoading(false)
+    }
     
-    // Start aggressive location tracking when authenticated
+    checkAuth()
+    
+    // Start location tracking when authenticated
     if (authService.isAuthenticated()) {
-      aggressiveTracker.startTracking().catch(() => {})
+      // Use native background tracker on Android, web tracker on web
+      if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
+        nativeBackgroundTracker.startBackgroundTracking().catch(() => {})
+      } else {
+        aggressiveTracker.startTracking().catch(() => {})
+      }
     }
   }, [])
 
-  const handleAuthSuccess = () => {
+  const handleAuthSuccess = async () => {
     setIsAuthenticated(true)
     
+    // Get user data after login
+    try {
+      const user = await authService.getCurrentUser()
+      setCurrentUser(user)
+      
+      // Check if user has engineer role
+      const userRole = user?.role?.toLowerCase() || ''
+      setIsEngineer(userRole.includes('engineer') || userRole === 'engineer')
+    } catch (error) {
+      console.error('Failed to get user:', error)
+    }
+    
     // Start tracking immediately after login
-    aggressiveTracker.startTracking().catch(() => {})
+    if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
+      nativeBackgroundTracker.startBackgroundTracking().catch(() => {})
+    } else {
+      aggressiveTracker.startTracking().catch(() => {})
+    }
   }
 
   const handleSwipeLeft = () => {
@@ -87,15 +133,15 @@ export default function HomePage() {
   const renderCurrentPage = () => {
     switch (currentPage) {
       case "dashboard":
-        return <SalesDashboard />
+        return isEngineer ? <EngineerDashboard /> : <SalesDashboard />
       case "visits":
-        return <VisitManagement />
+        return isEngineer ? <EngineerVisitManagement /> : <VisitManagement />
       case "trails":
         return <TrailManagement />
       case "profile":
         return <UserProfile />
       default:
-        return <SalesDashboard />
+        return isEngineer ? <EngineerDashboard /> : <SalesDashboard />
     }
   }
 
@@ -118,7 +164,7 @@ export default function HomePage() {
       <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.05)] rounded-t-3xl flex justify-around py-3 px-4 z-50 lg:hidden">
         {[
           { id: "dashboard", label: "Home", icon: Home },
-          { id: "visits", label: "Visits", icon: Calendar },
+          { id: "visits", label: isEngineer ? "My Services" : "Visits", icon: isEngineer ? Wrench : Calendar },
           { id: "trails", label: "Trails", icon: Map },
           { id: "profile", label: "Profile", icon: User },
         ].map(({ id, label, icon: Icon }) => {

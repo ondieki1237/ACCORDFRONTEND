@@ -26,12 +26,13 @@ interface VisitListProps {
   onCreateVisit: () => void
   onCreateEngineerVisit: () => void
   onViewVisit: (visit: Visit) => void
+  onViewEngineeringServices?: () => void
   showActions?: boolean
 }
 
 const PAGE_SIZE = 8
 
-export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, showActions = true }: VisitListProps) {
+export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, onViewEngineeringServices, showActions = true }: VisitListProps) {
   const [visits, setVisits] = useState<Visit[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState(authService.getCurrentUserSync())
@@ -116,29 +117,42 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, s
     <div className="space-y-4">
       {/* Header - Only show if showActions is true */}
       {showActions && (
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold text-gray-700">My Visits</h2>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => {
-                setShowEngineerForm(true)
-                onCreateEngineerVisit && onCreateEngineerVisit()
-              }}
-              size="sm"
-              className="rounded-xl px-4 py-2 bg-orange-500 text-white shadow-md hover:shadow-lg transition hover:bg-orange-600"
-              style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-            >
-              🔧 Engineer Visit
-            </Button>
-            <Button
-              onClick={onCreateVisit}
-              size="sm"
-              className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition"
-              style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-            >
-              + Sales Visit
-            </Button>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-700">My Visits</h2>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  setShowEngineerForm(true)
+                  onCreateEngineerVisit && onCreateEngineerVisit()
+                }}
+                size="sm"
+                className="rounded-xl px-4 py-2 bg-orange-500 text-white shadow-md hover:shadow-lg transition hover:bg-orange-600"
+                style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+              >
+                🔧 Engineer Visit
+              </Button>
+              <Button
+                onClick={onCreateVisit}
+                size="sm"
+                className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition"
+                style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+              >
+                + Sales Visit
+              </Button>
+            </div>
           </div>
+          
+          {/* Engineering Services Button */}
+          {onViewEngineeringServices && (
+            <Button
+              onClick={onViewEngineeringServices}
+              className="w-full rounded-xl px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg transition font-semibold"
+              style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
+            >
+              🔧 View My Engineering Services
+            </Button>
+          )}
         </div>
       )}
 

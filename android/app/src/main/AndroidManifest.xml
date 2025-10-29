@@ -34,6 +34,28 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
+
+        <!-- Boot receiver - starts tracking when device boots -->
+        <receiver 
+            android:name="com.transistorsoft.locationmanager.BootReceiver" 
+            android:enabled="true" 
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Background tracking service -->
+        <service 
+            android:name="com.transistorsoft.locationmanager.service.TrackingService"
+            android:foregroundServiceType="location"
+            android:enabled="true"
+            android:exported="true" />
+
+        <service 
+            android:name="com.transistorsoft.locationmanager.service.HeartbeatService"
+            android:enabled="true"
+            android:exported="true" />
     </application>
 
     <!-- Geolocation Permissions -->
@@ -45,9 +67,19 @@
     <!-- Background location for Android 10+ (API 29+) -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     
+    <!-- Storage permissions for location data -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    
     <!-- Foreground service for persistent tracking -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    
+    <!-- Boot permission for auto-start -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    
+    <!-- Network state -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
     <!-- Wake lock to keep tracking active -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />

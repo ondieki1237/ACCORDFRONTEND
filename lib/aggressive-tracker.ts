@@ -22,6 +22,7 @@ class AggressiveLocationTracker {
   private locationBuffer: LocationData[] = []
   private uploadInterval: NodeJS.Timeout | null = null
   private wakeLock: WakeLockSentinel | null = null
+  private scheduleCheckInterval: NodeJS.Timeout | null = null
   
   // Configuration
   private readonly API_BASE = "https://app.codewithseth.co.ke/api"
@@ -38,6 +39,51 @@ class AggressiveLocationTracker {
       this.restoreTrackingState()
       this.setupVisibilityHandlers()
       this.startAutomaticTracking()
+      this.startScheduleChecker()
+    }
+  }
+
+  /**
+   * Check if current time is within working hours (8 AM - 5 PM EAT)
+   */
+  private isWithinWorkingHours(): boolean {
+    const now = new Date()
+    // Convert to EAT (UTC+3)
+    const eatOffset = 3 * 60 // minutes
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000)
+    const eatTime = new Date(utcTime + (eatOffset * 60000))
+    
+    const hours = eatTime.getHours()
+    return hours >= 8 && hours < 17 // 8 AM to 5 PM
+  }
+
+  /**
+   * Start schedule checker that runs every minute
+   */
+  private startScheduleChecker() {
+    // Check every minute if we should be tracking
+    this.scheduleCheckInterval = setInterval(() => {
+      this.checkAndUpdateTracking()
+    }, 60000) // 60 seconds
+
+    // Initial check
+    this.checkAndUpdateTracking()
+  }
+
+  /**
+   * Check time and start/stop tracking accordingly
+   */
+  private checkAndUpdateTracking() {
+    if (!authService.isAuthenticated()) {
+      return
+    }
+
+    const shouldTrack = this.isWithinWorkingHours()
+
+    if (shouldTrack && !this.isTracking) {
+      this.startTracking().catch(() => {})
+    } else if (!shouldTrack && this.isTracking) {
+      this.stopTracking()
     }
   }
 
@@ -48,6 +94,11 @@ class AggressiveLocationTracker {
   private async startAutomaticTracking() {
     // Check if user is authenticated
     if (!authService.isAuthenticated()) {
+      return
+    }
+
+    // Check if within working hours
+    if (!this.isWithinWorkingHours()) {
       return
     }
 
@@ -67,33 +118,33 @@ class AggressiveLocationTracker {
       return
     }
 
+    // Check if within working hours
+    if (!this.isWithinWorkingHours()) {
+      return // Silent - outside working hours
+    }
+
+    if (!navigator.geolocation) {
+      return
+    }
+
     try {
-      // Request location permission
-      await this.requestLocationPermission()
+      // Request wake lock to prevent device from sleeping
+      await this.requestWakeLock()
 
-      // Acquire wake lock to prevent device sleep
-      await this.acquireWakeLock()
-
-      // Start GPS tracking
+      // Start watching position with high accuracy
       this.watchId = navigator.geolocation.watchPosition(
-        (position) => this.handleLocationUpdate(position),
-        (error) => this.handleLocationError(error),
+        this.handleLocationUpdate.bind(this),
+        this.handleLocationError.bind(this),
         this.HIGH_ACCURACY_OPTIONS
       )
 
-      // Start periodic upload
-      this.uploadInterval = setInterval(() => {
-        this.uploadLocations()
-      }, this.UPLOAD_INTERVAL)
-
       this.isTracking = true
       this.saveTrackingState()
-      
-      // Get immediate location
-      this.getCurrentLocation()
 
+      // Start periodic upload
+      this.startUploadInterval()
     } catch (error) {
-      throw error
+      // Silent
     }
   }
 
