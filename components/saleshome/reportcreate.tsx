@@ -9,15 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Check, Save, Clock, AlertCircle, Edit3, FileText, Calendar } from "lucide-react";
+import { Check, Save, Clock, AlertCircle, Edit3, FileText, Calendar, TrendingUp, Users, ShoppingCart, Target, Zap, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { authService, type User } from "@/lib/auth";
+import { Preferences } from "@capacitor/preferences";
 
 interface ReportSection {
   id: string;
   title: string;
   content: string;
   isRequired?: boolean;
+  icon?: any;
+  color?: string;
 }
 
 const defaultSections: ReportSection[] = [
@@ -25,39 +28,63 @@ const defaultSections: ReportSection[] = [
     id: "summary",
     title: "Weekly Summary",
     content: "",
-    isRequired: true
+    isRequired: true,
+    icon: TrendingUp,
+    color: "from-blue-500 to-cyan-500"
   },
   {
     id: "visits",
     title: "Customer Visits",
     content: "",
-    isRequired: true
+    isRequired: true,
+    icon: Users,
+    color: "from-green-500 to-emerald-500"
   },
   {
     id: "quotations",
     title: "Quotations Generated",
     content: "",
-    isRequired: true
+    isRequired: true,
+    icon: ShoppingCart,
+    color: "from-purple-500 to-pink-500"
   },
   {
     id: "leads",
     title: "New Leads",
     content: "",
-    isRequired: false
+    isRequired: false,
+    icon: Target,
+    color: "from-orange-500 to-red-500"
   },
   {
     id: "challenges",
     title: "Challenges Faced",
     content: "",
-    isRequired: false
+    isRequired: false,
+    icon: AlertCircle,
+    color: "from-red-500 to-rose-500"
   },
   {
     id: "next-week",
     title: "Next Week's Plan",
     content: "",
-    isRequired: true
+    isRequired: true,
+    icon: Zap,
+    color: "from-yellow-500 to-amber-500"
   }
 ];
+
+const LOCAL_KEY = "pendingReports";
+
+// Helper functions for offline storage
+async function getPendingReports(): Promise<any[]> {
+  const { value } = await Preferences.get({ key: LOCAL_KEY });
+  return value ? JSON.parse(value) : [];
+}
+
+async function setPendingReports(reports: any[]) {
+  await Preferences.set({ key: LOCAL_KEY, value: JSON.stringify(reports) });
+}
 
 interface CreateReportProps {
   onClose?: () => void;
@@ -74,9 +101,52 @@ export default function CreateReport({ onClose, onSuccess }: CreateReportProps =
   const [isDirty, setIsDirty] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Set<string>>(new Set());
   const [shouldValidate, setShouldValidate] = useState(false);
+  const [pendingReports, setPendingReportsState] = useState<any[]>([]);
   
   const router = useRouter();
   const { toast } = useToast();
+
+  // Load pending reports on mount
+  useEffect(() => {
+    getPendingReports().then(setPendingReportsState);
+  }, []);
+
+  // Sync pending reports when online
+  useEffect(() => {
+    const syncPending = async () => {
+      const reportsToSync = await getPendingReports();
+      if (navigator.onLine && reportsToSync.length > 0) {
+        const failed: any[] = [];
+        for (const report of reportsToSync) {
+          try {
+            const token = localStorage.getItem("accessToken");
+            const response = await fetch("https://app.codewithseth.co.ke/api/reports", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify(report),
+            });
+            if (!response.ok) throw new Error("Sync failed");
+          } catch (err) {
+            failed.push(report);
+          }
+        }
+        setPendingReportsState(failed);
+        await setPendingReports(failed);
+        if (reportsToSync.length > failed.length) {
+          toast({
+            title: "Reports Synced",
+            description: `${reportsToSync.length - failed.length} offline report(s) uploaded successfully.`,
+          });
+        }
+      }
+    };
+    window.addEventListener("online", syncPending);
+    syncPending();
+    return () => window.removeEventListener("online", syncPending);
+  }, [toast]);
 
   // Move all hooks to top level
   const validateRequiredFields = useCallback(() => {
@@ -191,7 +261,7 @@ export default function CreateReport({ onClose, onSuccess }: CreateReportProps =
     try {
       const token = localStorage.getItem("accessToken");
       
-      // Prepare report data as JSON structure
+      // Prepare report data matching visit structure
       const reportData = {
         weekStart,
         weekEnd,
@@ -210,26 +280,36 @@ export default function CreateReport({ onClose, onSuccess }: CreateReportProps =
         isDraft: false
       };
 
-      const response = await fetch("https://app.codewithseth.co.ke/api/reports", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(reportData),
-      });
+      if (navigator.onLine) {
+        const response = await fetch("https://app.codewithseth.co.ke/api/reports", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(reportData),
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        toast({
+          title: "Report Submitted",
+          description: "Your weekly report has been successfully submitted and will be converted to PDF for admin review.",
+        });
+      } else {
+        // Save offline
+        const updatedPending = [...pendingReports, reportData];
+        setPendingReportsState(updatedPending);
+        await setPendingReports(updatedPending);
+        
+        toast({
+          title: "Offline Mode",
+          description: "Report saved locally and will be submitted when you're back online.",
+        });
       }
-
-      const result = await response.json();
-      
-      toast({
-        title: "Report Submitted",
-        description: "Your weekly report has been successfully submitted and will be converted to PDF for admin review.",
-      });
 
       // Clear form and call onSuccess
       setSections(defaultSections);
@@ -312,59 +392,72 @@ export default function CreateReport({ onClose, onSuccess }: CreateReportProps =
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="space-y-4">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-          <p className="text-center text-gray-600">Loading...</p>
+      <div className="min-h-screen bg-gradient-to-br from-[#f1f4f9] via-[#e8ecf4] to-[#dfe5f0] flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <div className="h-16 w-16 mx-auto border-4 border-[#00aeef]/30 border-t-[#00aeef] rounded-full animate-spin" />
+          <p className="text-gray-600 font-semibold">Loading your workspace...</p>
         </div>
       </div>
     );
   }
 
+  const progress = calculateProgress();
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-              <FileText className="w-8 h-8 text-blue-600" />
-              Create Weekly Report
-            </h1>
-            {weekStart && weekEnd && (
-              <p className="text-gray-600 mt-1">
-                Week of {new Date(weekStart).toLocaleDateString()} - {new Date(weekEnd).toLocaleDateString()}
+    <div className="min-h-screen bg-gradient-to-br from-[#f1f4f9] via-[#e8ecf4] to-[#dfe5f0] p-4 md:p-6">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header Section */}
+        <div 
+          className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] rounded-3xl p-6 md:p-8 shadow-xl"
+          style={{ 
+            boxShadow: "12px 12px 24px rgba(0, 174, 239, 0.2), -12px -12px 24px rgba(255, 255, 255, 0.9)"
+          }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
+                  <FileText className="h-8 w-8 text-white" />
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold text-white">Weekly Report</h2>
+              </div>
+              <p className="text-white/90 text-sm md:text-base ml-14">
+                {weekStart && weekEnd 
+                  ? `Week of ${new Date(weekStart).toLocaleDateString()} - ${new Date(weekEnd).toLocaleDateString()}`
+                  : 'Document your weekly achievements and plans'
+                }
               </p>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            {isDirty && (
-              <Badge variant="outline" className="text-xs flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                Unsaved changes
-              </Badge>
-            )}
+            </div>
             {onClose && (
-              <Button variant="ghost" onClick={onClose} size="sm">
-                Close
+              <Button 
+                onClick={onClose}
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/20 rounded-full h-12 w-12"
+              >
+                <ArrowLeft className="h-6 w-6" />
               </Button>
             )}
           </div>
-        </div>
 
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex justify-between text-sm text-gray-600 mb-2">
-            <span>Progress</span>
-            <span>{calculateProgress()}% complete</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
-              style={{ width: `${calculateProgress()}%` }}
-            />
+          {/* Progress Bar */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-white/90 text-sm font-semibold">Completion Progress</span>
+              <span className="text-white font-bold text-lg">{progress}%</span>
+            </div>
+            <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
+              <div 
+                className="bg-white h-full rounded-full transition-all duration-500 ease-out shadow-lg"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            {pendingReports.length > 0 && (
+              <div className="mt-2 flex items-center gap-2 text-white/80 text-xs">
+                <Clock className="h-4 w-4" />
+                <span>{pendingReports.length} report(s) pending sync</span>
+              </div>
+            )}
           </div>
         </div>
 
