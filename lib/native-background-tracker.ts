@@ -41,12 +41,56 @@ class NativeBackgroundTracker {
   private readonly API_BASE = "https://app.codewithseth.co.ke/api";
   private isConfigured = false;
   private scheduleCheckInterval: any = null;
+  private lastStoredLocation: { latitude: number; longitude: number } | null = null;
+  private readonly MIN_DISTANCE_METERS = 5; // Minimum 5 meters movement to store
 
   constructor() {
     if (Capacitor.isNativePlatform()) {
       this.initializeBackgroundTracking();
       this.startScheduleChecker();
     }
+  }
+
+  /**
+   * Calculate distance between two coordinates using Haversine formula
+   * Returns distance in meters
+   */
+  private calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number {
+    const R = 6371e3; // Earth's radius in meters
+    const φ1 = (lat1 * Math.PI) / 180;
+    const φ2 = (lat2 * Math.PI) / 180;
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c; // Distance in meters
+  }
+
+  /**
+   * Check if location should be stored (moved more than MIN_DISTANCE_METERS)
+   */
+  private shouldStoreLocation(latitude: number, longitude: number): boolean {
+    if (!this.lastStoredLocation) {
+      return true; // Always store first location
+    }
+
+    const distance = this.calculateDistance(
+      this.lastStoredLocation.latitude,
+      this.lastStoredLocation.longitude,
+      latitude,
+      longitude
+    );
+
+    return distance >= this.MIN_DISTANCE_METERS;
   }
 
   /**
@@ -265,6 +309,18 @@ class NativeBackgroundTracker {
    * Handle location update
    */
   private onLocation(location: any) {
+    // Filter redundant locations - only process if user moved significantly
+    if (!this.shouldStoreLocation(location.coords.latitude, location.coords.longitude)) {
+      // User hasn't moved more than 5 meters, skip this location
+      return;
+    }
+
+    // Update last stored location
+    this.lastStoredLocation = {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+    };
+
     // Location is automatically sent to server by the plugin
     // Silent - no logging
   }

@@ -23,6 +23,8 @@ class AggressiveLocationTracker {
   private uploadInterval: NodeJS.Timeout | null = null
   private wakeLock: WakeLockSentinel | null = null
   private scheduleCheckInterval: NodeJS.Timeout | null = null
+  private lastStoredLocation: { latitude: number; longitude: number } | null = null
+  private readonly MIN_DISTANCE_METERS = 5 // Minimum 5 meters movement to store
   
   // Configuration
   private readonly API_BASE = "https://app.codewithseth.co.ke/api"
@@ -41,6 +43,48 @@ class AggressiveLocationTracker {
       this.startAutomaticTracking()
       this.startScheduleChecker()
     }
+  }
+
+  /**
+   * Calculate distance between two coordinates using Haversine formula
+   * Returns distance in meters
+   */
+  private calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number {
+    const R = 6371e3 // Earth's radius in meters
+    const φ1 = (lat1 * Math.PI) / 180
+    const φ2 = (lat2 * Math.PI) / 180
+    const Δφ = ((lat2 - lat1) * Math.PI) / 180
+    const Δλ = ((lon2 - lon1) * Math.PI) / 180
+
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+    return R * c // Distance in meters
+  }
+
+  /**
+   * Check if location should be stored (moved more than MIN_DISTANCE_METERS)
+   */
+  private shouldStoreLocation(latitude: number, longitude: number): boolean {
+    if (!this.lastStoredLocation) {
+      return true // Always store first location
+    }
+
+    const distance = this.calculateDistance(
+      this.lastStoredLocation.latitude,
+      this.lastStoredLocation.longitude,
+      latitude,
+      longitude
+    )
+
+    return distance >= this.MIN_DISTANCE_METERS
   }
 
   /**
@@ -193,6 +237,18 @@ class AggressiveLocationTracker {
    * Handle location update from GPS
    */
   private handleLocationUpdate(position: GeolocationPosition): void {
+    // Filter redundant locations - only store if user moved significantly
+    if (!this.shouldStoreLocation(position.coords.latitude, position.coords.longitude)) {
+      // User hasn't moved more than 5 meters, skip this location
+      return
+    }
+
+    // Update last stored location
+    this.lastStoredLocation = {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    }
+
     const locationData: LocationData = {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,

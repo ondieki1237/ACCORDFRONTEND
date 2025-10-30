@@ -4,7 +4,8 @@
 import { useState, useEffect } from "react"
 import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
-import { TrailManagement } from "@/components/trails/trail-management"
+import { ProductManagement } from "@/components/products/product-management"
+import { QuotationManagement } from "@/components/quotations/quotation-management"
 import { VisitManagement } from "@/components/visits/visit-management"
 import { EngineerVisitManagement } from "@/components/visits/engineer-visit-management"
 import { PWAInstall } from "@/components/mobile/pwa-install"
@@ -16,7 +17,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { UserProfile } from "@/components/profile/user-profile"
 import SalesDashboard from "@/components/saleshome/page"
 import EngineerDashboard from "@/components/saleshome/engineer-dashboard"
-import { Home, Calendar, Map, User, Wrench } from "lucide-react"
+import { Home, Calendar, ShoppingCart, User, Wrench, ClipboardList } from "lucide-react"
 import { aggressiveTracker } from "@/lib/aggressive-tracker"
 import { nativeBackgroundTracker } from "@/lib/native-background-tracker"
 import { Capacitor } from "@capacitor/core"
@@ -87,7 +88,7 @@ export default function HomePage() {
   }
 
   const handleSwipeLeft = () => {
-    const pages = ["dashboard", "visits", "trails", "profile"]
+    const pages = ["dashboard", "visits", "products", "quotations", "profile"]
     const currentIndex = pages.indexOf(currentPage)
     if (currentIndex < pages.length - 1) {
       setCurrentPage(pages[currentIndex + 1])
@@ -95,7 +96,7 @@ export default function HomePage() {
   }
 
   const handleSwipeRight = () => {
-    const pages = ["dashboard", "visits", "trails", "profile"]
+    const pages = ["dashboard", "visits", "products", "quotations", "profile"]
     const currentIndex = pages.indexOf(currentPage)
     if (currentIndex > 0) {
       setCurrentPage(pages[currentIndex - 1])
@@ -136,8 +137,10 @@ export default function HomePage() {
         return isEngineer ? <EngineerDashboard /> : <SalesDashboard />
       case "visits":
         return isEngineer ? <EngineerVisitManagement /> : <VisitManagement />
-      case "trails":
-        return <TrailManagement />
+      case "products":
+        return <ProductManagement />
+      case "quotations":
+        return <QuotationManagement />
       case "profile":
         return <UserProfile />
       default:
@@ -165,7 +168,8 @@ export default function HomePage() {
         {[
           { id: "dashboard", label: "Home", icon: Home },
           { id: "visits", label: isEngineer ? "My Services" : "Visits", icon: isEngineer ? Wrench : Calendar },
-          { id: "trails", label: "Trails", icon: Map },
+          { id: "products", label: "Products", icon: ShoppingCart },
+          { id: "quotations", label: "Quotes", icon: ClipboardList },
           { id: "profile", label: "Profile", icon: User },
         ].map(({ id, label, icon: Icon }) => {
           const isActive = currentPage === id
@@ -173,13 +177,13 @@ export default function HomePage() {
             <button
               key={id}
               onClick={() => setCurrentPage(id)}
-              className={`flex flex-col items-center justify-center px-4 py-2 rounded-xl transition-all duration-300 ${
+              className={`flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-all duration-300 ${
                 isActive
                   ? "bg-[#00aeef] text-white shadow-inner scale-105"
                   : "text-gray-600 hover:bg-gray-100/50 hover:scale-105"
               }`}
             >
-              <Icon className="h-6 w-6 mb-1" />
+              <Icon className="h-5 w-5 mb-1" />
               <span className="text-xs font-semibold">{label}</span>
             </button>
           )

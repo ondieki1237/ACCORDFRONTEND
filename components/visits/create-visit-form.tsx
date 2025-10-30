@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Building, Users, Clock, MapPin } from "lucide-react"
+import { Building, Users, Clock, MapPin, CheckCircle2, Calendar } from "lucide-react"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -156,231 +156,336 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto bg-[#f1f4f9] p-6 rounded-2xl shadow-[8px_8px_16px_#d1d9e6,-8px_-8px_16px_#ffffff]">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-[#00aeef]">Record Client Visit</h2>
-          <p className="text-gray-500">Create a new client visit:</p>
+    <div className="min-h-screen bg-gradient-to-br from-[#f1f4f9] via-[#e8ecf4] to-[#dfe5f0] p-4 md:p-6">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header Section */}
+        <div 
+          className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] rounded-3xl p-6 md:p-8 shadow-xl"
+          style={{ 
+            boxShadow: "12px 12px 24px rgba(0, 174, 239, 0.2), -12px -12px 24px rgba(255, 255, 255, 0.9)"
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
+                  <Clock className="h-8 w-8 text-white" />
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold text-white">New Client Visit</h2>
+              </div>
+              <p className="text-white/90 text-sm md:text-base ml-14">
+                Schedule and record visit details for your client
+              </p>
+            </div>
+            <Button 
+              variant="ghost" 
+              onClick={onCancel} 
+              className="h-12 px-6 rounded-2xl bg-white/10 hover:bg-white/20 text-white border-white/30 backdrop-blur-sm shadow-lg"
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
-        <Button variant="outline" onClick={onCancel} className="h-10 px-6 rounded-xl shadow">
-          Cancel
-        </Button>
-      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Visit Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Visit Details
-            </CardTitle>
-            <CardDescription>Specify the date and time of the visit</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => updateField("date", e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="startTime">Start Time</Label>
-              <Input
-                id="startTime"
-                type="time"
-                value={formData.startTime}
-                onChange={(e) => updateField("startTime", e.target.value)}
-                required
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Visit Details */}
+          <Card 
+            className="rounded-3xl bg-white border-0 overflow-hidden"
+            style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
+          >
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-cyan-50 pb-4">
+              <CardTitle className="flex items-center gap-3 text-[#00aeef]">
+                <div className="bg-[#00aeef] rounded-xl p-2">
+                  <Clock className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-xl">Visit Schedule</span>
+              </CardTitle>
+              <CardDescription className="ml-14 text-base">When will this visit take place?</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6 md:grid-cols-2 pt-6">
+              <div className="space-y-2">
+                <Label htmlFor="date" className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-[#00aeef]" />
+                  Visit Date *
+                </Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => updateField("date", e.target.value)}
+                  required
+                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef] transition-all"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="startTime" className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-[#00aeef]" />
+                  Start Time *
+                </Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={formData.startTime}
+                  onChange={(e) => updateField("startTime", e.target.value)}
+                  required
+                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef] transition-all"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Client Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building className="h-5 w-5" />
-              Client Information
-            </CardTitle>
-            <CardDescription>Details about the client</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="clientName">Facility Name</Label>
-              <Input
-                id="clientName"
-                placeholder="e.g. Acme Hospital"
-                value={formData.clientName}
-                onChange={(e) => updateField("clientName", e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="clientType">Client Type</Label>
-              <Select value={formData.clientType} onValueChange={(v) => updateField("clientType", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select client type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hospital">Hospital</SelectItem>
-                  <SelectItem value="clinic">Clinic</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                placeholder="e.g. Nairobi"
-                value={formData.location}
-                onChange={(e) => updateField("location", e.target.value)}
-                required
-              />
-            </div>
-          </CardContent>
-        </Card>
+          {/* Client Information */}
+          <Card 
+            className="rounded-3xl bg-white border-0 overflow-hidden"
+            style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
+          >
+            <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 pb-4">
+              <CardTitle className="flex items-center gap-3 text-[#00aeef]">
+                <div className="bg-emerald-500 rounded-xl p-2">
+                  <Building className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-xl">Client Details</span>
+              </CardTitle>
+              <CardDescription className="ml-14 text-base">Information about the facility</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <div className="space-y-2">
+                <Label htmlFor="clientName" className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                  <Building className="h-4 w-4 text-emerald-500" />
+                  Facility Name *
+                </Label>
+                <Input
+                  id="clientName"
+                  placeholder="e.g. Nairobi General Hospital"
+                  value={formData.clientName}
+                  onChange={(e) => updateField("clientName", e.target.value)}
+                  required
+                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base"
+                />
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="clientType" className="text-base font-semibold text-gray-700">Client Type *</Label>
+                  <Select value={formData.clientType} onValueChange={(v) => updateField("clientType", v)}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
+                      <SelectValue placeholder="Select client type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hospital">🏥 Hospital</SelectItem>
+                      <SelectItem value="clinic">🏥 Clinic</SelectItem>
+                      <SelectItem value="other">📋 Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="location" className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-emerald-500" />
+                    Location *
+                  </Label>
+                  <Input
+                    id="location"
+                    placeholder="e.g. Nairobi, Kenya"
+                    value={formData.location}
+                    onChange={(e) => updateField("location", e.target.value)}
+                    required
+                    className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Visit Purpose and Outcome */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Visit Purpose & Outcome
-            </CardTitle>
-            <CardDescription>Purpose and expected outcome of the visit</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="visitPurpose">Visit Purpose</Label>
-              <Select value={formData.visitPurpose} onValueChange={(v) => updateField("visitPurpose", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select purpose" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="routine_visit">Routine Visit</SelectItem>
-                  <SelectItem value="follow_up">Follow Up</SelectItem>
-                  <SelectItem value="demo">Demo</SelectItem>
-                  <SelectItem value="service">Service</SelectItem>
-                  <SelectItem value="complaint">Complaint</SelectItem>
-                  <SelectItem value="order">Order</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="visitOutcome">Visit Outcome</Label>
-              <Select value={formData.visitOutcome} onValueChange={(v) => updateField("visitOutcome", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select outcome" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="successful">Successful</SelectItem>
-                  <SelectItem value="partial">Partial</SelectItem>
-                  <SelectItem value="no_access">No Access</SelectItem>
-                  <SelectItem value="rescheduled">Rescheduled</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="isFollowUpRequired">Follow-Up Required</Label>
-              <Select
-                value={formData.isFollowUpRequired.toString()}
-                onValueChange={(v) => updateField("isFollowUpRequired", v === "true")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select follow-up requirement" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="false">No</SelectItem>
-                  <SelectItem value="true">Yes</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Visit Purpose and Outcome */}
+          <Card 
+            className="rounded-3xl bg-white border-0 overflow-hidden"
+            style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
+          >
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 pb-4">
+              <CardTitle className="flex items-center gap-3 text-[#00aeef]">
+                <div className="bg-purple-500 rounded-xl p-2">
+                  <MapPin className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-xl">Visit Purpose & Outcome</span>
+              </CardTitle>
+              <CardDescription className="ml-14 text-base">What is the goal of this visit?</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="visitPurpose" className="text-base font-semibold text-gray-700">Visit Purpose *</Label>
+                  <Select value={formData.visitPurpose} onValueChange={(v) => updateField("visitPurpose", v)}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
+                      <SelectValue placeholder="Select purpose" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="routine_visit">🔄 Routine Visit</SelectItem>
+                      <SelectItem value="follow_up">📞 Follow Up</SelectItem>
+                      <SelectItem value="demo">🎯 Demo</SelectItem>
+                      <SelectItem value="service">🔧 Service</SelectItem>
+                      <SelectItem value="complaint">⚠️ Complaint</SelectItem>
+                      <SelectItem value="order">📦 Order</SelectItem>
+                      <SelectItem value="other">📋 Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="visitOutcome" className="text-base font-semibold text-gray-700">Expected Outcome *</Label>
+                  <Select value={formData.visitOutcome} onValueChange={(v) => updateField("visitOutcome", v)}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
+                      <SelectValue placeholder="Select outcome" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="successful">✅ Successful</SelectItem>
+                      <SelectItem value="partial">⚡ Partial</SelectItem>
+                      <SelectItem value="no_access">🚫 No Access</SelectItem>
+                      <SelectItem value="rescheduled">📅 Rescheduled</SelectItem>
+                      <SelectItem value="cancelled">❌ Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="isFollowUpRequired" className="text-base font-semibold text-gray-700">Follow-Up Required? *</Label>
+                <Select
+                  value={formData.isFollowUpRequired.toString()}
+                  onValueChange={(v) => updateField("isFollowUpRequired", v === "true")}
+                >
+                  <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
+                    <SelectValue placeholder="Select follow-up requirement" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="false">❌ No</SelectItem>
+                    <SelectItem value="true">✅ Yes</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Contact Person */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Contact Person
-            </CardTitle>
-            <CardDescription>Primary contact for this visit (Compulsory)</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="contactName">Contact Name</Label>
-              <Input
-                id="contactName"
-                placeholder="e.g. Dr. Jane Doe"
-                value={formData.contactName}
-                onChange={(e) => updateField("contactName", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contactRole">Contact Role</Label>
-              <Select value={formData.contactRole} onValueChange={(v) => updateField("contactRole", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="doctor">Doctor</SelectItem>
-                  <SelectItem value="nurse">Nurse</SelectItem>
-                  <SelectItem value="lab_technician">Lab Technician</SelectItem>
-                  <SelectItem value="pharmacist">Pharmacist</SelectItem>
-                  <SelectItem value="administrator">Administrator</SelectItem>
-                  <SelectItem value="procurement">Procurement</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contactPhone">Contact Phone</Label>
-              <Input
-                id="contactPhone"
-                placeholder="e.g. +254712345678"
-                value={formData.contactPhone}
-                onChange={(e) => updateField("contactPhone", e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="contactEmail">Contact Email</Label>
-              <Input
-                id="contactEmail"
-                type="email"
-                placeholder="e.g. jane.doe@example.com"
-                value={formData.contactEmail}
-                onChange={(e) => updateField("contactEmail", e.target.value)}
-              />
-            </div>
-          </CardContent>
-        </Card>
+          {/* Contact Person */}
+          <Card 
+            className="rounded-3xl bg-white border-0 overflow-hidden"
+            style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
+          >
+            <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 pb-4">
+              <CardTitle className="flex items-center gap-3 text-[#00aeef]">
+                <div className="bg-orange-500 rounded-xl p-2">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-xl">Contact Person</span>
+              </CardTitle>
+              <CardDescription className="ml-14 text-base">Primary contact at the facility (Compulsory)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <div className="space-y-2">
+                <Label htmlFor="contactName" className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                  <Users className="h-4 w-4 text-orange-500" />
+                  Contact Name *
+                </Label>
+                <Input
+                  id="contactName"
+                  placeholder="e.g. Dr. Jane Doe"
+                  value={formData.contactName}
+                  onChange={(e) => updateField("contactName", e.target.value)}
+                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-orange-500 transition-all text-base"
+                />
+              </div>
+              <div className="grid gap-6 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="contactRole" className="text-base font-semibold text-gray-700">Contact Role *</Label>
+                  <Select value={formData.contactRole} onValueChange={(v) => updateField("contactRole", v)}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="doctor">👨‍⚕️ Doctor</SelectItem>
+                      <SelectItem value="nurse">👩‍⚕️ Nurse</SelectItem>
+                      <SelectItem value="lab_technician">🔬 Lab Technician</SelectItem>
+                      <SelectItem value="pharmacist">💊 Pharmacist</SelectItem>
+                      <SelectItem value="administrator">💼 Administrator</SelectItem>
+                      <SelectItem value="procurement">📦 Procurement</SelectItem>
+                      <SelectItem value="other">📋 Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contactPhone" className="text-base font-semibold text-gray-700">Phone Number</Label>
+                  <Input
+                    id="contactPhone"
+                    placeholder="+254712345678"
+                    value={formData.contactPhone}
+                    onChange={(e) => updateField("contactPhone", e.target.value)}
+                    className="h-12 rounded-xl border-2 border-gray-200 focus:border-orange-500 transition-all text-base"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contactEmail" className="text-base font-semibold text-gray-700">Email Address</Label>
+                <Input
+                  id="contactEmail"
+                  type="email"
+                  placeholder="jane.doe@example.com"
+                  value={formData.contactEmail}
+                  onChange={(e) => updateField("contactEmail", e.target.value)}
+                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-orange-500 transition-all text-base"
+                />
+              </div>
+            </CardContent>
+          </Card>
       
 
-        <div className="flex gap-4">
-          <Button type="submit" className="flex-1 h-10 px-6 bg-[#00aeef] text-white rounded-xl shadow hover:shadow-md transition" disabled={isSubmitting}>
-            {isSubmitting ? "Recording..." : "Record Visit"}
-          </Button>
-          <Button type="button" variant="outline" onClick={onCancel} className="h-10 px-6 rounded-xl shadow">
-            Cancel
-          </Button>
-        </div>
-      </form>
-      {/* Show pending visits badge/message */}
-      {pendingVisits.length > 0 && (
-        <div className="text-xs text-yellow-600 mt-2">
-          {pendingVisits.length} visit(s) pending upload. They will sync automatically when you are online.
-        </div>
-      )}
+          {/* Submit Buttons */}
+          <div className="flex flex-col md:flex-row gap-4 pt-4">
+            <Button 
+              type="submit" 
+              className="flex-1 h-14 px-8 text-lg font-semibold bg-gradient-to-r from-[#00aeef] to-[#0096d6] text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]" 
+              disabled={isSubmitting}
+              style={{
+                boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.3), -8px -8px 16px rgba(255, 255, 255, 0.8)"
+              }}
+            >
+              {isSubmitting ? (
+                <div className="flex items-center gap-2">
+                  <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Recording Visit...
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Record Visit
+                </div>
+              )}
+            </Button>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel} 
+              className="h-14 px-8 text-lg font-semibold rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+        
+        {/* Show pending visits badge/message */}
+        {pendingVisits.length > 0 && (
+          <div 
+            className="bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-yellow-400 rounded-2xl p-4 flex items-center gap-3 shadow-lg"
+          >
+            <div className="bg-yellow-400 rounded-full p-2">
+              <Clock className="h-5 w-5 text-yellow-900" />
+            </div>
+            <div>
+              <p className="font-semibold text-yellow-900">
+                {pendingVisits.length} visit{pendingVisits.length > 1 ? 's' : ''} pending upload
+              </p>
+              <p className="text-sm text-yellow-800">
+                Will sync automatically when you're back online
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
