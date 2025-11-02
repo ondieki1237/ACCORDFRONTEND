@@ -28,7 +28,7 @@ class AggressiveLocationTracker {
   
   // Configuration
   private readonly API_BASE = "https://app.codewithseth.co.ke/api"
-  private readonly UPLOAD_INTERVAL = 60000 // Upload every 60 seconds
+  private readonly UPLOAD_INTERVAL = 20000 // Upload every 20 seconds
   private readonly MAX_BUFFER_SIZE = 50 // Max locations to buffer before forced upload
   private readonly HIGH_ACCURACY_OPTIONS: PositionOptions = {
     enableHighAccuracy: true,

@@ -122,17 +122,6 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
             <h2 className="text-lg font-bold text-gray-700">My Visits</h2>
             <div className="flex gap-2">
               <Button
-                onClick={() => {
-                  setShowEngineerForm(true)
-                  onCreateEngineerVisit && onCreateEngineerVisit()
-                }}
-                size="sm"
-                className="rounded-xl px-4 py-2 bg-orange-500 text-white shadow-md hover:shadow-lg transition hover:bg-orange-600"
-                style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-              >
-                🔧 Engineer Visit
-              </Button>
-              <Button
                 onClick={onCreateVisit}
                 size="sm"
                 className="rounded-xl px-4 py-2 bg-[#00aeef] text-white shadow-md hover:shadow-lg transition"
@@ -142,17 +131,6 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
               </Button>
             </div>
           </div>
-          
-          {/* Engineering Services Button */}
-          {onViewEngineeringServices && (
-            <Button
-              onClick={onViewEngineeringServices}
-              className="w-full rounded-xl px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg transition font-semibold"
-              style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-            >
-              🔧 View My Engineering Services
-            </Button>
-          )}
         </div>
       )}
 

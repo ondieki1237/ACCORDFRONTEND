@@ -14,6 +14,7 @@ import { MobileOptimizations } from "@/components/mobile/mobile-optimizations"
 import { TouchGestures } from "@/components/mobile/touch-gestures"
 import { authService } from "@/lib/auth"
 import { Toaster } from "@/components/ui/toaster"
+import { Button } from "@/components/ui/button"
 import { UserProfile } from "@/components/profile/user-profile"
 import SalesDashboard from "@/components/saleshome/page"
 import EngineerDashboard from "@/components/saleshome/engineer-dashboard"
@@ -29,6 +30,7 @@ export default function HomePage() {
   const [currentPage, setCurrentPage] = useState("dashboard")
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isEngineer, setIsEngineer] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -40,9 +42,10 @@ export default function HomePage() {
           const user = await authService.getCurrentUser()
           setCurrentUser(user)
           
-          // Check if user has engineer role
+          // Check user role
           const userRole = user?.role?.toLowerCase() || ''
           setIsEngineer(userRole.includes('engineer') || userRole === 'engineer')
+          setIsAdmin(userRole.includes('admin') || userRole === 'admin' || userRole === 'manager')
         } catch (error) {
           console.error('Failed to get user:', error)
         }
@@ -72,9 +75,10 @@ export default function HomePage() {
       const user = await authService.getCurrentUser()
       setCurrentUser(user)
       
-      // Check if user has engineer role
+      // Check user role
       const userRole = user?.role?.toLowerCase() || ''
       setIsEngineer(userRole.includes('engineer') || userRole === 'engineer')
+      setIsAdmin(userRole.includes('admin') || userRole === 'admin' || userRole === 'manager')
     } catch (error) {
       console.error('Failed to get user:', error)
     }
@@ -84,6 +88,19 @@ export default function HomePage() {
       nativeBackgroundTracker.startBackgroundTracking().catch(() => {})
     } else {
       aggressiveTracker.startTracking().catch(() => {})
+    }
+  }
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout()
+      setIsAuthenticated(false)
+      setCurrentUser(null)
+      setIsEngineer(false)
+      setIsAdmin(false)
+      setCurrentPage("dashboard")
+    } catch (error) {
+      console.error('Logout failed:', error)
     }
   }
 
@@ -130,6 +147,34 @@ export default function HomePage() {
   }
 
   const renderCurrentPage = () => {
+    // Admin users get redirected to admin panel
+    if (isAdmin) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center">
+          <div className="max-w-md space-y-4">
+            <h1 className="text-3xl font-bold text-[#00aeef]">Admin Dashboard</h1>
+            <p className="text-gray-600">
+              Admin access detected. Please use the dedicated admin panel.
+            </p>
+            <Button
+              onClick={() => window.location.href = 'https://app.codewithseth.co.ke/admin'}
+              className="bg-[#00aeef] hover:bg-[#0097d6] w-full"
+            >
+              Go to Admin Panel
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="w-full"
+            >
+              Logout
+            </Button>
+          </div>
+        </div>
+      )
+    }
+
+    // Regular role-based routing for sales and engineers
     switch (currentPage) {
       case "dashboard":
         return isEngineer ? <EngineerDashboard /> : <SalesDashboard />

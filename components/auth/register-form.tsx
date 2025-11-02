@@ -25,7 +25,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
     role: "",
     region: "",
     territory: "",
-    department: "",
+    department: "", // Still needed for backend compatibility but hidden from UI
   })
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
@@ -35,16 +35,18 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
     setIsLoading(true)
 
     try {
-      await authService.register(formData)
+      // Remove empty department field before sending to backend
+      const { department, ...registrationData } = formData
+      await authService.register(registrationData as RegisterData)
       toast({
-        title: "Registration successful",
-        description: "Welcome to ACCORD!",
+        title: "Success",
+        description: "Registration successful! Please login.",
       })
       onSuccess()
-    } catch (error) {
+    } catch (err: unknown) {
       toast({
-        title: "Registration failed",
-        description: "Please check your information and try again.",
+        title: "Error",
+        description: err instanceof Error ? err.message : "Registration failed",
         variant: "destructive",
       })
     } finally {
@@ -145,8 +147,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="sales">Sales</SelectItem>
-              <SelectItem value="manager">Manager</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
+              <SelectItem value="engineer">Engineer</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -179,21 +180,6 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
               required
             />
           </div>
-        </div>
-
-        {/* Department */}
-        <div className="space-y-1">
-          <Label htmlFor="department" className="text-xs font-medium text-gray-700">Department</Label>
-          <Select value={formData.department} onValueChange={(value) => updateField("department", value)}>
-            <SelectTrigger className="h-11 text-sm rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20">
-              <SelectValue placeholder="Select department" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sales">Sales</SelectItem>
-              <SelectItem value="marketing">Marketing</SelectItem>
-              <SelectItem value="operations">Operations</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Submit Button */}

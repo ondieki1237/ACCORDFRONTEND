@@ -47,13 +47,39 @@ export interface Visit {
   id?: string
   date: string
   startTime: string
+  endTime?: string
+  duration?: number
   client: {
     name: string
     type: string
     location: string
   }
   visitPurpose: string
-  contacts: { name: string; role: string }[]
+  visitOutcome?: string
+  contacts?: { 
+    name: string
+    role: string
+    phone?: string
+    email?: string
+    department?: string
+    notes?: string
+    followUpRequired?: boolean
+    followUpDate?: string
+    priority?: string
+  }[]
+  existingEquipment?: any[]
+  requestedEquipment?: any[]
+  totalPotentialValue?: number
+  competitorActivity?: string
+  marketInsights?: string
+  notes?: string
+  nextVisitDate?: string
+  isFollowUpRequired?: boolean
+  followUpActions?: any[]
+  tags?: string[]
+  photos?: any[]
+  attachments?: any[]
+  _createdOffline?: boolean
 }
 
 export interface EngineeringService {
@@ -133,13 +159,22 @@ class ApiService {
     if (!response.ok) {
       // Try to parse error response for better debugging
       let errorMsg = response.statusText;
+      let fullErrorData = null;
       try {
         const errorData = await response.json();
+        fullErrorData = errorData;
+        console.error('Backend error response:', errorData);
         if (errorData && errorData.message) {
           errorMsg = errorData.message;
         }
+        if (errorData && errorData.error) {
+          errorMsg += ": " + errorData.error;
+        }
         if (errorData && errorData.errors) {
           errorMsg += ": " + JSON.stringify(errorData.errors);
+        }
+        if (errorData && errorData.details) {
+          errorMsg += " - " + JSON.stringify(errorData.details);
         }
       } catch {
         // ignore JSON parse errors
@@ -255,9 +290,20 @@ class ApiService {
   }
 
   async createVisit(visitData: Omit<Visit, "id">): Promise<Visit> {
+    // Check if we're actually online before attempting API call
+    if (!navigator.onLine) {
+      console.log('Device is offline, saving visit locally')
+      await offlineStorage.addToPendingSync('visits', visitData)
+      return {
+        ...visitData,
+        id: `offline_visit_${Date.now()}`,
+        _createdOffline: true
+      } as Visit
+    }
+
     try {
-      // Only send the fields the backend expects
-      const payload = {
+      // Build payload matching backend minimal structure
+      const payload: any = {
         date: visitData.date,
         startTime: visitData.startTime,
         client: {
@@ -266,36 +312,92 @@ class ApiService {
           location: visitData.client.location,
         },
         visitPurpose: visitData.visitPurpose,
-        contacts: (visitData.contacts || []).map(c => ({
-          name: c.name,
-          role: c.role,
-        })),
+        visitOutcome: visitData.visitOutcome || 'pending',
       };
+
+      // Add level to client if it exists
+      if ((visitData.client as any).level) {
+        payload.client.level = (visitData.client as any).level;
+      }
+
+      // Add notes if provided
+      if (visitData.notes && visitData.notes.trim() !== '') {
+        payload.notes = visitData.notes;
+      }
+
+      // Add customData if provided
+      if ((visitData as any).customData && (visitData as any).customData.trim() !== '') {
+        payload.customData = (visitData as any).customData;
+      }
+
+      // Add contacts only if they exist and are valid
+      if (visitData.contacts && visitData.contacts.length > 0) {
+        const validContacts = visitData.contacts.filter(c => c.name && c.name.trim() !== '');
+        if (validContacts.length > 0) {
+          payload.contacts = validContacts.map(c => {
+            const contact: any = {
+              name: c.name,
+              role: c.role || 'other',
+            };
+            if (c.phone && c.phone.trim() !== '') contact.phone = c.phone;
+            if (c.email && c.email.trim() !== '') contact.email = c.email;
+            return contact;
+          });
+        }
+      }
+
+      // Add other optional fields only if they have meaningful values
+      if (visitData.endTime) payload.endTime = visitData.endTime;
+      if (visitData.duration) payload.duration = visitData.duration;
+      if (visitData.isFollowUpRequired !== undefined) payload.isFollowUpRequired = visitData.isFollowUpRequired;
+      if (visitData.nextVisitDate) payload.nextVisitDate = visitData.nextVisitDate;
+      if (visitData.totalPotentialValue) payload.totalPotentialValue = visitData.totalPotentialValue;
+      if (visitData.competitorActivity && visitData.competitorActivity.trim() !== '') {
+        payload.competitorActivity = visitData.competitorActivity;
+      }
+      if (visitData.marketInsights && visitData.marketInsights.trim() !== '') {
+        payload.marketInsights = visitData.marketInsights;
+      }
       
+      // Add array fields if they exist
+      if (visitData.existingEquipment && visitData.existingEquipment.length > 0) {
+        payload.existingEquipment = visitData.existingEquipment;
+      }
+      if (visitData.requestedEquipment && visitData.requestedEquipment.length > 0) {
+        payload.requestedEquipment = visitData.requestedEquipment;
+      }
+      if (visitData.followUpActions && visitData.followUpActions.length > 0) {
+        payload.followUpActions = visitData.followUpActions;
+      }
+      if (visitData.tags && visitData.tags.length > 0) {
+        payload.tags = visitData.tags;
+      }
+      if (visitData.photos && visitData.photos.length > 0) {
+        payload.photos = visitData.photos;
+      }
+      if (visitData.attachments && visitData.attachments.length > 0) {
+        payload.attachments = visitData.attachments;
+      }
+      
+      console.log('Creating visit online with payload:', payload)
       const response = await this.makeRequest("/visits", {
         method: "POST",
         body: JSON.stringify(payload),
       });
+      console.log('Visit created successfully:', response)
       return response
-    } catch (error) {
-      console.warn('Failed to create visit online, saving offline:', error)
-      
-      // If offline, store in pending sync
-      await offlineStorage.addToPendingSync('visits', visitData)
-      
-      // Return a mock response with offline indicator
-      return {
-        ...visitData,
-        id: `offline_visit_${Date.now()}`,
-        _createdOffline: true
-      } as Visit
+    } catch (error: any) {
+      console.error('Failed to create visit online:', error)
+      // If we're here and online, it means the API call failed
+      // Don't save to offline storage - throw the error to show to user
+      throw new Error(error.message || 'Failed to create visit. Please check your connection and try again.')
     }
   }
 
   async createEngineerVisit(visitData: any): Promise<any> {
     try {
       // Engineer visit data structure as used in the form
-      return await this.makeRequest("/engineer-visits", {
+      return await this.makeRequest("/engineering-services", {
         method: "POST",
         body: JSON.stringify(visitData),
       });

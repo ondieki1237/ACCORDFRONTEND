@@ -32,7 +32,7 @@ export interface RegisterData {
   role: string
   region: string
   territory: string
-  department: string
+  department?: string // Optional since it's not required by backend
 }
 
 class AuthService {

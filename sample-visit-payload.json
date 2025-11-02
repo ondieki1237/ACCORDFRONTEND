@@ -1,0 +1,21 @@
+{
+  "date": "2025-11-02T07:00:00.000Z",
+  "startTime": "2025-11-02T07:00:00.000Z",
+  "client": {
+    "name": "Kenyatta National Hospital",
+    "type": "hospital",
+    "level": "5",
+    "location": "Nairobi, Kenya"
+  },
+  "visitPurpose": "demo",
+  "visitOutcome": "successful",
+  "notes": "Met with procurement team to discuss new CT scanner equipment. Showed demo of the latest model. They are interested in getting a quotation for 2 units.",
+  "contacts": [
+    {
+      "name": "Dr. Jane Kamau",
+      "role": "doctor",
+      "phone": "+254712345678",
+      "email": "jane.kamau@knh.go.ke"
+    }
+  ]
+}

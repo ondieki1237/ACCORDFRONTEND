@@ -93,12 +93,8 @@ export function QuotationList() {
           description: `Successfully synced ${result.success} quotation(s). ${result.failed} failed.`,
         })
         await loadQuotations()
-      } else {
-        toast({
-          title: "Nothing to Sync",
-          description: "All quotations are up to date",
-        })
       }
+      // Silently succeed when there's nothing to sync
     } catch (error: any) {
       toast({
         title: "Sync Failed",

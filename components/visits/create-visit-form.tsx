@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Building, Users, Clock, MapPin, CheckCircle2, Calendar } from "lucide-react"
+import { Building, Users, Clock, MapPin, CheckCircle2, Calendar, FileText } from "lucide-react"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -21,6 +21,7 @@ interface VisitFormData {
   startTime: string
   clientName: string
   clientType: string
+  hospitalLevel: string
   location: string
   visitPurpose: string
   visitOutcome: string
@@ -29,6 +30,7 @@ interface VisitFormData {
   contactPhone: string
   contactEmail: string
   isFollowUpRequired: boolean
+  notes: string
 }
 
 const LOCAL_KEY = "pendingVisits"
@@ -49,14 +51,16 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
     startTime: "09:00",
     clientName: "",
     clientType: "hospital",
+    hospitalLevel: "5",
     location: "",
     visitPurpose: "demo",
     visitOutcome: "successful",
     contactName: "",
-    contactRole: "other",
+    contactRole: "doctor",
     contactPhone: "",
     contactEmail: "",
     isFollowUpRequired: false,
+    notes: "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
@@ -106,48 +110,66 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
 
     try {
       const dateTime = new Date(`${formData.date}T${formData.startTime}:00Z`).toISOString()
-      const visitData = {
+      
+      const visitData: any = {
         date: dateTime,
         startTime: dateTime,
         client: {
           name: formData.clientName,
           type: formData.clientType,
+          level: formData.hospitalLevel,
           location: formData.location,
         },
         visitPurpose: formData.visitPurpose,
         visitOutcome: formData.visitOutcome,
-        contacts: formData.contactName
-          ? [{
-              name: formData.contactName,
-              role: formData.contactRole,
-              phone: formData.contactPhone,
-              email: formData.contactEmail,
-            }]
-          : [],
-        isFollowUpRequired: formData.isFollowUpRequired,
+        notes: formData.notes,
       }
 
-      if (navigator.onLine) {
-        await apiService.createVisit(visitData)
-        toast({
-          title: "Visit scheduled",
-          description: "Your client visit has been successfully recorded.",
-        })
-        onSuccess()
-      } else {
-        const updatedPending = [...pendingVisits, visitData]
-        setPendingVisitsState(updatedPending)
-        await setPendingVisits(updatedPending)
-        toast({
-          title: "Offline mode",
-          description: "Visit saved locally and will upload when online.",
-        })
-        onSuccess()
+      // Only add contacts if contact name is provided
+      if (formData.contactName && formData.contactName.trim() !== '') {
+        visitData.contacts = [{
+          name: formData.contactName,
+          role: formData.contactRole,
+          phone: formData.contactPhone,
+          email: formData.contactEmail,
+        }];
       }
-    } catch (error) {
+
+      // Use localhost:4500 for testing
+      const token = localStorage.getItem('accessToken');
+      console.log('Sending visit data:', JSON.stringify(visitData, null, 2));
+      console.log('Using token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+      
+      const response = await fetch('http://localhost:4500/api/visits', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(visitData),
+      });
+
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+        console.error('Backend error response:', errorData);
+        throw new Error(errorData.message || `Failed to create visit (${response.status})`);
+      }
+
+      const result = await response.json();
+      
+      // Successfully saved online
       toast({
-        title: "Scheduling failed",
-        description: "Could not schedule your visit. Please try again.",
+        title: "Visit Created",
+        description: "Your client visit has been successfully saved to the database.",
+      })
+      onSuccess()
+    } catch (error: any) {
+      console.error('Visit creation error:', error)
+      toast({
+        title: "Failed to Create Visit",
+        description: error.message || "Could not save your visit. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -278,19 +300,36 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="location" className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-emerald-500" />
-                    Location *
-                  </Label>
-                  <Input
-                    id="location"
-                    placeholder="e.g. Nairobi, Kenya"
-                    value={formData.location}
-                    onChange={(e) => updateField("location", e.target.value)}
-                    required
-                    className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base"
-                  />
+                  <Label htmlFor="hospitalLevel" className="text-base font-semibold text-gray-700">Hospital Level *</Label>
+                  <Select value={formData.hospitalLevel} onValueChange={(v) => updateField("hospitalLevel", v)}>
+                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
+                      <SelectValue placeholder="Select hospital level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="6">Level 6 - National Referral Hospitals</SelectItem>
+                      <SelectItem value="5">Level 5 - County Referral Hospitals</SelectItem>
+                      <SelectItem value="4">Level 4 - Primary Hospitals</SelectItem>
+                      <SelectItem value="3">Level 3 - Health Centres</SelectItem>
+                      <SelectItem value="2">Level 2 - Dispensaries</SelectItem>
+                      <SelectItem value="1">Level 1 - Community Health Facilities</SelectItem>
+                      <SelectItem value="not_applicable">Not Applicable (Clinic/Pharmacy/Lab)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="location" className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-emerald-500" />
+                  Location *
+                </Label>
+                <Input
+                  id="location"
+                  placeholder="e.g. Nairobi, Kenya"
+                  value={formData.location}
+                  onChange={(e) => updateField("location", e.target.value)}
+                  required
+                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base"
+                />
               </div>
             </CardContent>
           </Card>
@@ -318,28 +357,27 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                       <SelectValue placeholder="Select purpose" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="routine_visit">🔄 Routine Visit</SelectItem>
-                      <SelectItem value="follow_up">📞 Follow Up</SelectItem>
                       <SelectItem value="demo">🎯 Demo</SelectItem>
-                      <SelectItem value="service">🔧 Service</SelectItem>
-                      <SelectItem value="complaint">⚠️ Complaint</SelectItem>
-                      <SelectItem value="order">📦 Order</SelectItem>
+                      <SelectItem value="followup">📞 Follow Up</SelectItem>
+                      <SelectItem value="installation">🔧 Installation</SelectItem>
+                      <SelectItem value="maintenance">�️ Maintenance</SelectItem>
+                      <SelectItem value="consultation">💬 Consultation</SelectItem>
+                      <SelectItem value="sales">� Sales</SelectItem>
                       <SelectItem value="other">📋 Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="visitOutcome" className="text-base font-semibold text-gray-700">Expected Outcome *</Label>
+                  <Label htmlFor="visitOutcome" className="text-base font-semibold text-gray-700">Visit Outcome *</Label>
                   <Select value={formData.visitOutcome} onValueChange={(v) => updateField("visitOutcome", v)}>
                     <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
                       <SelectValue placeholder="Select outcome" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="successful">✅ Successful</SelectItem>
-                      <SelectItem value="partial">⚡ Partial</SelectItem>
-                      <SelectItem value="no_access">🚫 No Access</SelectItem>
-                      <SelectItem value="rescheduled">📅 Rescheduled</SelectItem>
-                      <SelectItem value="cancelled">❌ Cancelled</SelectItem>
+                      <SelectItem value="pending">⏳ Pending</SelectItem>
+                      <SelectItem value="followup_required">� Follow-up Required</SelectItem>
+                      <SelectItem value="no_interest">🚫 No Interest</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -400,10 +438,10 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                     <SelectContent>
                       <SelectItem value="doctor">👨‍⚕️ Doctor</SelectItem>
                       <SelectItem value="nurse">👩‍⚕️ Nurse</SelectItem>
-                      <SelectItem value="lab_technician">🔬 Lab Technician</SelectItem>
-                      <SelectItem value="pharmacist">💊 Pharmacist</SelectItem>
-                      <SelectItem value="administrator">💼 Administrator</SelectItem>
-                      <SelectItem value="procurement">📦 Procurement</SelectItem>
+                      <SelectItem value="admin">� Administrator</SelectItem>
+                      <SelectItem value="procurement">� Procurement</SelectItem>
+                      <SelectItem value="it_manager">� IT Manager</SelectItem>
+                      <SelectItem value="ceo">� CEO</SelectItem>
                       <SelectItem value="other">📋 Other</SelectItem>
                     </SelectContent>
                   </Select>
@@ -428,6 +466,38 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                   value={formData.contactEmail}
                   onChange={(e) => updateField("contactEmail", e.target.value)}
                   className="h-12 rounded-xl border-2 border-gray-200 focus:border-orange-500 transition-all text-base"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Additional Notes */}
+          <Card 
+            className="rounded-3xl bg-white border-0 overflow-hidden"
+            style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
+          >
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 pb-4">
+              <CardTitle className="flex items-center gap-3 text-[#00aeef]">
+                <div className="bg-blue-500 rounded-xl p-2">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-xl">Additional Information</span>
+              </CardTitle>
+              <CardDescription className="ml-14 text-base">Any other relevant details about this visit</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              <div className="space-y-2">
+                <Label htmlFor="notes" className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-blue-500" />
+                  Notes & Observations
+                </Label>
+                <textarea
+                  id="notes"
+                  placeholder="Enter any additional information, observations, or important details from the visit..."
+                  value={formData.notes}
+                  onChange={(e) => updateField("notes", e.target.value)}
+                  rows={5}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-base resize-none"
                 />
               </div>
             </CardContent>

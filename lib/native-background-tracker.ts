@@ -2,7 +2,7 @@
  * Native Background Location Tracking
  * Uses Capacitor Background Geolocation for true 24/7 tracking
  * Tracks even when app is closed or device reboots
- * Only works 8 AM - 5 PM EAT (silent time restriction)
+ * Runs continuously in the background
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -94,17 +94,11 @@ class NativeBackgroundTracker {
   }
 
   /**
-   * Check if current time is within working hours (8 AM - 5 PM EAT)
+   * Check if current time is within working hours (24/7 tracking enabled)
    */
   private isWithinWorkingHours(): boolean {
-    const now = new Date();
-    // Convert to EAT (UTC+3)
-    const eatOffset = 3 * 60; // minutes
-    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const eatTime = new Date(utcTime + (eatOffset * 60000));
-    
-    const hours = eatTime.getHours();
-    return hours >= 8 && hours < 17; // 8 AM to 5 PM
+    // Track 24/7 - always return true
+    return true;
   }
 
   /**
@@ -210,7 +204,7 @@ class NativeBackgroundTracker {
       
       // HTTP Parameters - include userId if no token
       params: {
-        ...((!token && user?._id) ? { userId: user._id } : {})
+        ...((!token && user?.id) ? { userId: user.id } : {})
       },
       
       // Geofencing (optional)
@@ -236,11 +230,10 @@ class NativeBackgroundTracker {
         actions: []
       },
       foregroundService: true, // Required for Android 8+
-      enableHeadless: true,
       
       // Battery optimization
-      locationUpdateInterval: 60000, // 60 seconds (battery friendly)
-      fastestLocationUpdateInterval: 30000, // 30 seconds minimum
+      locationUpdateInterval: 20000, // 20 seconds (frequent updates)
+      fastestLocationUpdateInterval: 10000, // 10 seconds minimum
       deferTime: 0, // Don't defer location updates
       
       // Network
