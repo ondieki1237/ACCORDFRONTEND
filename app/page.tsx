@@ -116,16 +116,14 @@ export default function HomePage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#e6ecf5] to-[#d1dbe9]">
+      <div className="min-h-screen bg-gradient-to-br from-[#e6ecf5] to-[#d1dbe9]">
         <MobileOptimizations />
         <OfflineIndicator />
-        <div className="w-full max-w-md p-6 bg-white/80 backdrop-blur-md rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.1)]">
-          {showRegister ? (
-            <RegisterForm onSuccess={handleAuthSuccess} onSwitchToLogin={() => setShowRegister(false)} />
-          ) : (
-            <LoginForm onSuccess={handleAuthSuccess} onSwitchToRegister={() => setShowRegister(true)} />
-          )}
-        </div>
+        {showRegister ? (
+          <RegisterForm onSuccess={handleAuthSuccess} onSwitchToLogin={() => setShowRegister(false)} />
+        ) : (
+          <LoginForm onSuccess={handleAuthSuccess} onSwitchToRegister={() => setShowRegister(true)} />
+        )}
         <Toaster />
       </div>
     )

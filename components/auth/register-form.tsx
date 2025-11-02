@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { authService, type RegisterData } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { kenyanCounties } from "@/lib/constants"
@@ -58,175 +57,166 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white px-4 py-10">
-      <Card className="w-full max-w-lg border border-gray-100 shadow-md rounded-2xl">
-        <CardHeader className="text-center space-y-2">
-          <img
-            src="/accord-icon.png"
-            alt="ACCORD Logo"
-            className="w-16 h-16 mx-auto mb-2"
+    <div className="min-h-screen w-full bg-gradient-to-b from-blue-50 to-white flex flex-col items-center justify-center p-4 sm:p-6">
+      {/* Logo + Title */}
+      <div className="flex flex-col items-center mb-8">
+        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-3">
+          <img src="/accord-icon.png" alt="ACCORD Logo" className="w-10 h-10" />
+        </div>
+        <h1 className="text-2xl font-bold text-[#00aeef]">ACCORD</h1>
+        <p className="text-sm text-gray-600 mt-1">Create your employee account</p>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6">
+        {/* Name Section */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <Label htmlFor="firstName" className="text-xs font-medium text-gray-700">First Name</Label>
+            <Input
+              id="firstName"
+              placeholder="John"
+              value={formData.firstName}
+              onChange={(e) => updateField("firstName", e.target.value)}
+              className="h-11 text-sm rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20"
+              required
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="lastName" className="text-xs font-medium text-gray-700">Last Name</Label>
+            <Input
+              id="lastName"
+              placeholder="Doe"
+              value={formData.lastName}
+              onChange={(e) => updateField("lastName", e.target.value)}
+              className="h-11 text-sm rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Employee ID & Email */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <Label htmlFor="employeeId" className="text-xs font-medium text-gray-700">Employee ID</Label>
+            <Input
+              id="employeeId"
+              placeholder="EMP001"
+              value={formData.employeeId}
+              onChange={(e) => updateField("employeeId", e.target.value)}
+              className="h-11 text-sm rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20"
+              required
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="email" className="text-xs font-medium text-gray-700">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="john@example.com"
+              value={formData.email}
+              onChange={(e) => updateField("email", e.target.value)}
+              className="h-11 text-sm rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20"
+              required
+            />
+          </div>
+        </div>
+
+        {/* Password */}
+        <div className="space-y-1">
+          <Label htmlFor="password" className="text-xs font-medium text-gray-700">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            placeholder="Enter strong password"
+            value={formData.password}
+            onChange={(e) => updateField("password", e.target.value)}
+            className="h-11 text-sm rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20"
+            required
           />
-          <CardTitle className="text-3xl font-semibold text-[#00aeef] tracking-wide">
-            ACCORD
-          </CardTitle>
-          <CardDescription className="text-gray-500">
-            Create your employee account
-          </CardDescription>
-        </CardHeader>
+        </div>
 
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* --- Name Section --- */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="firstName" className="text-sm text-gray-700">First Name</Label>
-                <Input
-                  id="firstName"
-                  placeholder="John"
-                  value={formData.firstName}
-                  onChange={(e) => updateField("firstName", e.target.value)}
-                  className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="lastName" className="text-sm text-gray-700">Last Name</Label>
-                <Input
-                  id="lastName"
-                  placeholder="Doe"
-                  value={formData.lastName}
-                  onChange={(e) => updateField("lastName", e.target.value)}
-                  className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
-                  required
-                />
-              </div>
-            </div>
+        {/* Role */}
+        <div className="space-y-1">
+          <Label htmlFor="role" className="text-xs font-medium text-gray-700">Role</Label>
+          <Select value={formData.role} onValueChange={(value) => updateField("role", value)}>
+            <SelectTrigger className="h-11 text-sm rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20">
+              <SelectValue placeholder="Select role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sales">Sales</SelectItem>
+              <SelectItem value="manager">Manager</SelectItem>
+              <SelectItem value="admin">Admin</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-            {/* --- Employee & Email --- */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="employeeId" className="text-sm text-gray-700">Employee ID</Label>
-                <Input
-                  id="employeeId"
-                  placeholder="EMP001"
-                  value={formData.employeeId}
-                  onChange={(e) => updateField("employeeId", e.target.value)}
-                  className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="email" className="text-sm text-gray-700">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="john@example.com"
-                  value={formData.email}
-                  onChange={(e) => updateField("email", e.target.value)}
-                  className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
-                  required
-                />
-              </div>
-            </div>
+        {/* Region & Territory */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <Label htmlFor="region" className="text-xs font-medium text-gray-700">Region</Label>
+            <Select value={formData.region} onValueChange={(value) => updateField("region", value)}>
+              <SelectTrigger className="h-11 text-sm rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20">
+                <SelectValue placeholder="Select county" />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                {kenyanCounties.map((county) => (
+                  <SelectItem key={county} value={county}>
+                    {county}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="territory" className="text-xs font-medium text-gray-700">Territory</Label>
+            <Input
+              id="territory"
+              placeholder="Work location"
+              value={formData.territory}
+              onChange={(e) => updateField("territory", e.target.value)}
+              className="h-11 text-sm rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20"
+              required
+            />
+          </div>
+        </div>
 
-            {/* --- Password --- */}
-            <div>
-              <Label htmlFor="password" className="text-sm text-gray-700">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter strong password"
-                value={formData.password}
-                onChange={(e) => updateField("password", e.target.value)}
-                className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
-                required
-              />
-            </div>
+        {/* Department */}
+        <div className="space-y-1">
+          <Label htmlFor="department" className="text-xs font-medium text-gray-700">Department</Label>
+          <Select value={formData.department} onValueChange={(value) => updateField("department", value)}>
+            <SelectTrigger className="h-11 text-sm rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20">
+              <SelectValue placeholder="Select department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="sales">Sales</SelectItem>
+              <SelectItem value="marketing">Marketing</SelectItem>
+              <SelectItem value="operations">Operations</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-            {/* --- Role --- */}
-            <div>
-              <Label htmlFor="role" className="text-sm text-gray-700">Role</Label>
-              <Select value={formData.role} onValueChange={(value) => updateField("role", value)}>
-                <SelectTrigger className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Submit Button */}
+        <Button
+          type="submit"
+          className="w-full h-12 bg-[#00aeef] hover:bg-[#0097d6] text-white font-medium rounded-lg text-sm transition-all shadow-sm"
+          disabled={isLoading}
+        >
+          {isLoading ? "Creating account..." : "Create Account"}
+        </Button>
 
-            {/* --- Region & Territory --- */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="region" className="text-sm text-gray-700">Region</Label>
-                <Select value={formData.region} onValueChange={(value) => updateField("region", value)}>
-                  <SelectTrigger className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]">
-                    <SelectValue placeholder="Select county" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60">
-                    {kenyanCounties.map((county) => (
-                      <SelectItem key={county} value={county}>
-                        {county}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="territory" className="text-sm text-gray-700">Territory</Label>
-                <Input
-                  id="territory"
-                  placeholder="Work location"
-                  value={formData.territory}
-                  onChange={(e) => updateField("territory", e.target.value)}
-                  className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* --- Department --- */}
-            <div>
-              <Label htmlFor="department" className="text-sm text-gray-700">Department</Label>
-              <Select value={formData.department} onValueChange={(value) => updateField("department", value)}>
-                <SelectTrigger className="mt-1 rounded-lg border border-gray-300 focus:border-[#00aeef] focus:ring-[#00aeef]">
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sales">Sales</SelectItem>
-                  <SelectItem value="marketing">Marketing</SelectItem>
-                  <SelectItem value="operations">Operations</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* --- Submit Button --- */}
-            <Button
-              type="submit"
-              className="w-full bg-[#00aeef] text-white font-medium rounded-lg py-2 hover:bg-[#0097d6] transition"
-              disabled={isLoading}
-            >
-              {isLoading ? "Creating account..." : "Create Account"}
-            </Button>
-
-            {/* --- Switch to Login --- */}
-            <p className="text-center text-sm text-gray-600">
-              Already have an account?{" "}
-              <button
-                type="button"
-                onClick={onSwitchToLogin}
-                className="text-[#00aeef] hover:underline"
-              >
-                Sign in
-              </button>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+        {/* Switch to Login */}
+        <p className="text-center text-xs text-gray-600 mt-4">
+          Already have an account?{" "}
+          <button
+            type="button"
+            onClick={onSwitchToLogin}
+            className="font-medium text-[#00aeef] hover:text-[#0097d6] hover:underline"
+          >
+            Sign in
+          </button>
+        </p>
+      </form>
     </div>
   )
 }

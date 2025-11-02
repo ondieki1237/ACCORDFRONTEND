@@ -172,8 +172,11 @@ class AggressiveLocationTracker {
     }
 
     try {
+      // Ensure we have location permission first
+      await this.requestLocationPermission()
+
       // Request wake lock to prevent device from sleeping
-      await this.requestWakeLock()
+      await this.acquireWakeLock()
 
       // Start watching position with high accuracy
       this.watchId = navigator.geolocation.watchPosition(
@@ -188,7 +191,8 @@ class AggressiveLocationTracker {
       // Start periodic upload
       this.startUploadInterval()
     } catch (error) {
-      // Silent
+      // Surface errors to console for easier debugging
+      console.warn('AggressiveTracker failed to start:', error)
     }
   }
 
@@ -321,8 +325,8 @@ class AggressiveLocationTracker {
       }
 
       // If no token but we have user ID, include it in body for unauthenticated mode
-      if (!token && user?._id) {
-        payload.userId = user._id
+      if (!token && (user as any)?._id) {
+        payload.userId = (user as any)._id
       }
 
       const response = await fetch(`${this.API_BASE}/location/track`, {
@@ -379,14 +383,36 @@ class AggressiveLocationTracker {
       this.wakeLock = await (navigator.wakeLock as any).request('screen')
 
       // Re-acquire wake lock if it's released
-      this.wakeLock.addEventListener('release', () => {
-        if (this.isTracking) {
-          setTimeout(() => this.acquireWakeLock(), 1000)
-        }
-      })
+      if (this.wakeLock) {
+        this.wakeLock.addEventListener('release', () => {
+          if (this.isTracking) {
+            setTimeout(() => this.acquireWakeLock(), 1000)
+          }
+        })
+      }
     } catch (error) {
       // Silent failure
     }
+  }
+
+  /**
+   * Start the periodic upload interval for buffered locations
+   */
+  private startUploadInterval(): void {
+    // Clear existing interval if present
+    if (this.uploadInterval) {
+      clearInterval(this.uploadInterval)
+      this.uploadInterval = null
+    }
+
+    // Immediate upload schedule
+    this.uploadInterval = setInterval(() => {
+      try {
+        this.uploadLocations()
+      } catch (err) {
+        console.warn('Failed to upload locations in interval:', err)
+      }
+    }, this.UPLOAD_INTERVAL)
   }
 
   /**
@@ -456,12 +482,12 @@ class AggressiveLocationTracker {
       }
 
       // Include userId if no token but have user ID
-      if (!token && user?._id) {
-        payload.userId = user._id
+      if (!token && (user as any)?._id) {
+        payload.userId = (user as any)._id
       }
 
-      // Skip if no authentication method available
-      if (!token && !user?._id) return
+  // Skip if no authentication method available
+  if (!token && !(user as any)?._id) return
 
       const xhr = new XMLHttpRequest()
       xhr.open('POST', `${this.API_BASE}/location/track`, false) // false = synchronous
