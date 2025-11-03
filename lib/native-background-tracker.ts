@@ -181,8 +181,8 @@ class NativeBackgroundTracker {
       disableStopDetection: false, // Enable stop detection
       
       // Application config
-      debug: false, // Set to true for development
-      logLevel: BackgroundGeolocation.LOG_LEVEL_OFF,
+      debug: true, // Enable debug mode
+      logLevel: BackgroundGeolocation.LOG_LEVEL_VERBOSE,
       stopOnTerminate: false, // Continue tracking when app is terminated
       startOnBoot: true, // Start automatically on device boot
       enableHeadless: true, // Enable headless mode (tracking without UI)
@@ -190,11 +190,12 @@ class NativeBackgroundTracker {
       // HTTP / SQLite config
       url: `${this.API_BASE}/location/track`,
       batchSync: true, // Batch multiple locations
-      autoSync: true, // Automatically sync to server
+      autoSync: true, // Automatically sync to server when online
+      autoSyncThreshold: 0, // Sync immediately (don't wait to accumulate)
       maxBatchSize: 50, // Max locations per batch
-      autoSyncThreshold: 10, // Sync after 10 locations
-      maxDaysToPersist: 7, // Keep offline data for 7 days
-      maxRecordsToPersist: 10000, // Max records in local database
+      maxDaysToPersist: 14, // Keep offline data for 14 days
+      maxRecordsToPersist: 50000, // Max records in local database (increased)
+      persistMode: BackgroundGeolocation.PERSIST_MODE_LOCATION, // Store all locations
       
       // HTTP Headers
       headers: {
@@ -240,9 +241,19 @@ class NativeBackgroundTracker {
       heartbeatInterval: 60, // Check every 60 seconds even when stationary
       scheduleSync: false, // Don't use schedule-based sync (use real-time)
       
-      // Network
-      maxRetries: 3, // Retry failed uploads 3 times
+      // Network - Enhanced for offline support
+      maxRetries: 5, // Retry failed uploads 5 times
+      retryDelay: 30000, // Wait 30 seconds between retries
       timeout: 60, // HTTP timeout in seconds
+      
+      // Location authorization
+      locationAuthorizationRequest: 'Always', // Request "Always" permission
+      backgroundPermissionRationale: {
+        title: "Allow location access all the time",
+        message: "This app needs to track your location even when closed to record field visits.",
+        positiveAction: "Change to 'Allow all the time'",
+        instructionMessage: "Tap 'Settings' > 'Permissions' > 'Location' > 'Allow all the time'"
+      }
     });
 
     // Listen to location updates
@@ -270,18 +281,20 @@ class NativeBackgroundTracker {
   async startBackgroundTracking() {
     try {
       if (!BackgroundGeolocation) {
+        console.log('[BackgroundGeolocation] Plugin not available');
         return; // Plugin not available
       }
 
       // Only start if within working hours
       if (!this.isWithinWorkingHours()) {
+        console.log('[BackgroundGeolocation] Outside working hours');
         return; // Silent - outside working hours
       }
 
       const state = await BackgroundGeolocation.start();
-      // Silent - no logging
+      console.log('[BackgroundGeolocation] Tracking started successfully', state);
     } catch (error) {
-      // Silent - no logging
+      console.error('[BackgroundGeolocation] Failed to start tracking:', error);
       throw error;
     }
   }
@@ -305,10 +318,18 @@ class NativeBackgroundTracker {
   /**
    * Handle location update
    */
-  private onLocation(location: any) {
+  private async onLocation(location: any) {
+    console.log('[BackgroundGeolocation] Location received:', {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+      accuracy: location.coords.accuracy,
+      timestamp: location.timestamp,
+      uuid: location.uuid
+    });
+
     // Filter redundant locations - only process if user moved significantly
     if (!this.shouldStoreLocation(location.coords.latitude, location.coords.longitude)) {
-      // User hasn't moved more than 5 meters, skip this location
+      console.log('[BackgroundGeolocation] Location skipped (less than 5m movement)');
       return;
     }
 
@@ -318,8 +339,48 @@ class NativeBackgroundTracker {
       longitude: location.coords.longitude,
     };
 
-    // Location is automatically sent to server by the plugin
-    // Silent - no logging
+    console.log('[BackgroundGeolocation] Location accepted and will be sent to server');
+    
+    // Try manual POST if plugin HTTP fails
+    try {
+      const token = authService.getAccessToken();
+      const user = authService.getCurrentUserSync();
+      
+      const payload = {
+        location: {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy,
+          altitude: location.coords.altitude,
+          speed: location.coords.speed,
+          heading: location.coords.heading,
+          timestamp: new Date(location.timestamp).toISOString()
+        },
+        userId: user?.id,
+        activity: location.activity?.type || 'unknown',
+        battery: location.battery?.level || null
+      };
+      
+      console.log('[BackgroundGeolocation] Sending manual POST:', payload);
+      
+      const response = await fetch(`${this.API_BASE}/location/track`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        console.log('[BackgroundGeolocation] Manual POST successful');
+      } else {
+        const errorText = await response.text();
+        console.error('[BackgroundGeolocation] Manual POST failed:', response.status, errorText);
+      }
+    } catch (error) {
+      console.error('[BackgroundGeolocation] Manual POST error:', error);
+    }
   }
 
   /**
@@ -372,7 +433,17 @@ class NativeBackgroundTracker {
    * Handle HTTP response from server
    */
   private onHttp(event: any) {
-    // Silent - no logging
+    console.log('[BackgroundGeolocation] HTTP Response:', {
+      success: event.success,
+      status: event.status,
+      responseText: event.responseText
+    });
+
+    if (event.success) {
+      console.log('[BackgroundGeolocation] Successfully synced to server');
+    } else {
+      console.error('[BackgroundGeolocation] Failed to sync:', event.status, event.responseText);
+    }
   }
 
   /**
@@ -446,6 +517,43 @@ class NativeBackgroundTracker {
       return state?.enabled || false;
     } catch (error) {
       return false;
+    }
+  }
+
+  /**
+   * Get current tracking state with detailed info for debugging
+   */
+  async getTrackingInfo() {
+    if (!BackgroundGeolocation) {
+      return { available: false, error: 'Plugin not available' };
+    }
+
+    try {
+      const state = await BackgroundGeolocation.getState();
+      const count = await BackgroundGeolocation.getCount();
+      
+      console.log('[BackgroundGeolocation] Current state:', {
+        enabled: state.enabled,
+        isMoving: state.isMoving,
+        trackingMode: state.trackingMode,
+        desiredAccuracy: state.desiredAccuracy,
+        odometer: state.odometer,
+        locationsInQueue: count,
+        url: state.url
+      });
+      
+      return {
+        available: true,
+        enabled: state.enabled,
+        isMoving: state.isMoving,
+        trackingMode: state.trackingMode,
+        locationsInQueue: count,
+        odometer: state.odometer,
+        url: state.url
+      };
+    } catch (error) {
+      console.error('[BackgroundGeolocation] Failed to get state:', error);
+      return { available: false, error: String(error) };
     }
   }
 

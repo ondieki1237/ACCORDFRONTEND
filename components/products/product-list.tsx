@@ -117,12 +117,10 @@ export function ProductList({ onViewProduct }: ProductListProps) {
         await fetchCategories()
         await fetchProducts()
       } else if (cachedProducts.length === 0) {
-        // No cache and offline
-        toast({
-          title: "Offline Mode",
-          description: "No cached data available. Please connect to internet to download products.",
-          variant: "destructive",
-        })
+        // No cache and offline - silently handle
+        console.log('📵 Offline with no cached data')
+        setProducts([])
+        setTotal(0)
       }
     } catch (error) {
       console.error("Failed to initialize:", error)

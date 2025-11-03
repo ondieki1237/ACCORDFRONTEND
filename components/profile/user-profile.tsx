@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { authService, type User } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
-import { UserIcon, Mail, MapPin, Building, Shield, LogOut, Edit, TrendingUp } from "lucide-react"
+import { UserIcon, Mail, MapPin, Building, Shield, LogOut, TrendingUp, User as UserIconLucide } from "lucide-react"
 import { Preferences } from "@capacitor/preferences"
 
 export function UserProfile() {
@@ -145,140 +145,164 @@ export function UserProfile() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Profile Header */}
-      <Card className={neumorphicCard}>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#f1f4f9] via-[#e8ecf4] to-[#dfe5f0] p-4 sm:p-6 lg:p-8">
+      <div className="space-y-6 max-w-2xl mx-auto">
+        {/* Profile Header */}
+        <div 
+          className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] rounded-3xl p-6 md:p-8 shadow-xl"
+          style={{ 
+            boxShadow: "12px 12px 24px rgba(0, 174, 239, 0.2), -12px -12px 24px rgba(255, 255, 255, 0.9)"
+          }}
+        >
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Avatar className={"w-16 h-16 " + neumorphicInset}>
-                <AvatarFallback className="text-lg font-semibold bg-primary text-primary-foreground">
-                  {getInitials(user.firstName, user.lastName)}
-                </AvatarFallback>
-              </Avatar>
+              <div className="bg-white/20 backdrop-blur-sm rounded-full p-1">
+                <Avatar className="w-16 h-16 md:w-20 md:h-20 border-4 border-white/30">
+                  <AvatarFallback className="text-2xl font-bold bg-white text-[#00aeef]">
+                    {getInitials(user.firstName, user.lastName)}
+                  </AvatarFallback>
+                </Avatar>
+              </div>
               <div>
-                <h2 className="text-2xl font-bold text-foreground">
+                <h2 className="text-2xl md:text-3xl font-bold text-white">
                   {user.firstName} {user.lastName}
                 </h2>
-                <p className="text-muted-foreground">Employee ID: {user.employeeId}</p>
-                <Badge className={`mt-2 ${getRoleColor(user.role)}`}>
+                <p className="text-white/80 text-sm md:text-base mt-1">Employee ID: {user.employeeId}</p>
+                <Badge className="mt-2 bg-white/20 text-white border-white/30 backdrop-blur-sm">
                   <Shield className="w-3 h-3 mr-1" />
                   {user.role}
                 </Badge>
               </div>
             </div>
-            <Button variant="outline" size="sm" className={neumorphicButton + " bg-transparent"}>
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
-            </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Sales Target Section */}
-      <Card className={neumorphicCard}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-700">
-            <TrendingUp className="w-5 h-5" />
-            Sales Target
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className={neumorphicInset + " p-6 flex items-center justify-center"}>
-            {salesLoading ? (
-              <span className="text-gray-400 animate-pulse">Loading...</span>
-            ) : salesTarget !== null ? (
-              <span className="text-2xl font-bold text-green-700">
-                Ksh {salesTarget.toLocaleString()}
-              </span>
-            ) : (
-              <span className="text-red-500">No target found</span>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Contact Information */}
-      <Card className={neumorphicCard}>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Mail className="w-5 h-5 mr-2 text-primary" />
-            Contact Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className={neumorphicInset + " p-4"}>
-            <div className="flex items-center space-x-3">
-              <Mail className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{user.email}</p>
-              </div>
+        {/* Sales Target Section */}
+        <Card 
+          className="bg-white rounded-3xl border-0 shadow-xl overflow-hidden"
+          style={{ 
+            boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.9)"
+          }}
+        >
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-[#00aeef] text-xl font-bold">
+              <TrendingUp className="w-6 h-6" />
+              Sales Target
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="bg-gradient-to-r from-[#00aeef]/5 to-[#0096d6]/5 rounded-2xl p-8 flex items-center justify-center">
+              {salesLoading ? (
+                <span className="text-gray-400 animate-pulse">Loading...</span>
+              ) : salesTarget !== null ? (
+                <span className="text-3xl md:text-4xl font-bold text-[#00aeef]">
+                  Ksh {salesTarget.toLocaleString()}
+                </span>
+              ) : (
+                <span className="text-red-500">No target found</span>
+              )}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Work Information */}
-      <Card className={neumorphicCard}>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Building className="w-5 h-5 mr-2 text-primary" />
-            Work Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className={neumorphicInset + " p-4"}>
+        {/* Contact Information */}
+        <Card 
+          className="bg-white rounded-3xl border-0 shadow-xl overflow-hidden"
+          style={{ 
+            boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.9)"
+          }}
+        >
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-[#00aeef] text-xl font-bold">
+              <Mail className="w-6 h-6" />
+              Contact Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-6">
+            <div className="bg-gradient-to-r from-[#00aeef]/5 to-[#0096d6]/5 rounded-2xl p-4">
               <div className="flex items-center space-x-3">
-                <Building className="w-4 h-4 text-muted-foreground" />
+                <div className="bg-white rounded-full p-3 shadow-md">
+                  <Mail className="w-5 h-5 text-[#00aeef]" />
+                </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Department</p>
-                  <p className="font-medium">{user.department}</p>
+                  <p className="text-sm text-gray-500 font-medium">Email</p>
+                  <p className="font-semibold text-gray-800">{user.email}</p>
                 </div>
               </div>
             </div>
-            <div className={neumorphicInset + " p-4"}>
-              <div className="flex items-center space-x-3">
-                <MapPin className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Region</p>
-                  <p className="font-medium">{user.region}</p>
+          </CardContent>
+        </Card>
+
+        {/* Work Information */}
+        <Card 
+          className="bg-white rounded-3xl border-0 shadow-xl overflow-hidden"
+          style={{ 
+            boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.9)"
+          }}
+        >
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-[#00aeef] text-xl font-bold">
+              <Building className="w-6 h-6" />
+              Work Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gradient-to-r from-[#00aeef]/5 to-[#0096d6]/5 rounded-2xl p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-white rounded-full p-3 shadow-md">
+                    <Building className="w-5 h-5 text-[#00aeef]" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Department</p>
+                    <p className="font-semibold text-gray-800">{user.department}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-r from-[#00aeef]/5 to-[#0096d6]/5 rounded-2xl p-4">
+                <div className="flex items-center space-x-3">
+                  <div className="bg-white rounded-full p-3 shadow-md">
+                    <MapPin className="w-5 h-5 text-[#00aeef]" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 font-medium">Region</p>
+                    <p className="font-semibold text-gray-800">{user.region}</p>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div className={neumorphicInset + " p-4"}>
-            <div className="flex items-center space-x-3">
-              <MapPin className="w-4 h-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Territory</p>
-                <p className="font-medium">{user.territory}</p>
+            <div className="bg-gradient-to-r from-[#00aeef]/5 to-[#0096d6]/5 rounded-2xl p-4">
+              <div className="flex items-center space-x-3">
+                <div className="bg-white rounded-full p-3 shadow-md">
+                  <MapPin className="w-5 h-5 text-[#00aeef]" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 font-medium">Territory</p>
+                  <p className="font-semibold text-gray-800">{user.territory}</p>
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Actions */}
-      <Card className={neumorphicCard}>
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button
-              variant="outline"
-              className={"flex-1 " + neumorphicButton + " bg-transparent"}
-              onClick={() => toast({ title: "Feature coming soon!" })}
+        {/* Actions */}
+        <Card 
+          className="bg-white rounded-3xl border-0 shadow-xl overflow-hidden"
+          style={{ 
+            boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.9)"
+          }}
+        >
+          <CardContent className="p-6">
+            <Button 
+              className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold shadow-lg rounded-xl px-6 py-6 transition-all duration-300 hover:scale-105"
+              onClick={handleLogout}
             >
-              <Edit className="w-4 h-4 mr-2" />
-              Edit Profile
-            </Button>
-            <Button variant="destructive" className="flex-1" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
+              <LogOut className="w-5 h-5 mr-2" />
               Logout
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

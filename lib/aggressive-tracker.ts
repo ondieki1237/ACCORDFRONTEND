@@ -91,6 +91,10 @@ class AggressiveLocationTracker {
    * Check if current time is within working hours (8 AM - 5 PM EAT)
    */
   private isWithinWorkingHours(): boolean {
+    // Track 24/7 for testing
+    return true
+    
+    /* Original time-based logic (commented out for 24/7 tracking):
     const now = new Date()
     // Convert to EAT (UTC+3)
     const eatOffset = 3 * 60 // minutes
@@ -99,6 +103,7 @@ class AggressiveLocationTracker {
     
     const hours = eatTime.getHours()
     return hours >= 8 && hours < 17 // 8 AM to 5 PM
+    */
   }
 
   /**
@@ -158,23 +163,30 @@ class AggressiveLocationTracker {
    * Start aggressive location tracking
    */
   async startTracking(): Promise<void> {
+    console.log('[AggressiveTracker] startTracking called')
+    
     if (this.isTracking) {
+      console.log('[AggressiveTracker] Already tracking, skipping')
       return
     }
 
     // Check if within working hours
     if (!this.isWithinWorkingHours()) {
+      console.log('[AggressiveTracker] Outside working hours (24/7 tracking disabled)')
       return // Silent - outside working hours
     }
 
     if (!navigator.geolocation) {
+      console.error('[AggressiveTracker] Geolocation not supported')
       return
     }
 
     try {
+      console.log('[AggressiveTracker] Requesting location permission...')
       // Ensure we have location permission first
       await this.requestLocationPermission()
 
+      console.log('[AggressiveTracker] Permission granted, starting GPS watch...')
       // Request wake lock to prevent device from sleeping
       await this.acquireWakeLock()
 
@@ -188,11 +200,13 @@ class AggressiveLocationTracker {
       this.isTracking = true
       this.saveTrackingState()
 
+      console.log('[AggressiveTracker] Tracking started successfully, watchId:', this.watchId)
+
       // Start periodic upload
       this.startUploadInterval()
     } catch (error) {
       // Surface errors to console for easier debugging
-      console.warn('AggressiveTracker failed to start:', error)
+      console.error('[AggressiveTracker] Failed to start:', error)
     }
   }
 
@@ -241,9 +255,16 @@ class AggressiveLocationTracker {
    * Handle location update from GPS
    */
   private handleLocationUpdate(position: GeolocationPosition): void {
+    console.log('[AggressiveTracker] Location received:', {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+      accuracy: position.coords.accuracy,
+      timestamp: Date.now()
+    })
+
     // Filter redundant locations - only store if user moved significantly
     if (!this.shouldStoreLocation(position.coords.latitude, position.coords.longitude)) {
-      // User hasn't moved more than 5 meters, skip this location
+      console.log('[AggressiveTracker] Location skipped (less than 5m movement)')
       return
     }
 
@@ -252,6 +273,8 @@ class AggressiveLocationTracker {
       latitude: position.coords.latitude,
       longitude: position.coords.longitude,
     }
+
+    console.log('[AggressiveTracker] Location accepted, adding to buffer')
 
     const locationData: LocationData = {
       latitude: position.coords.latitude,

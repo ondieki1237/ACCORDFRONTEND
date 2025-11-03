@@ -22,6 +22,7 @@ import { Home, Calendar, ShoppingCart, User, Wrench, ClipboardList } from "lucid
 import { aggressiveTracker } from "@/lib/aggressive-tracker"
 import { nativeBackgroundTracker } from "@/lib/native-background-tracker"
 import { Capacitor } from "@capacitor/core"
+import { Geolocation } from '@capacitor/geolocation'
 
 export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -32,39 +33,69 @@ export default function HomePage() {
   const [isEngineer, setIsEngineer] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
 
+  // Request all necessary permissions on native platforms
+  const requestPermissions = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      return
+    }
+
+    try {
+      console.log('📍 Requesting location permissions...')
+      
+      // Request location permission
+      const locationPermission = await Geolocation.requestPermissions()
+      console.log('Location permission status:', locationPermission)
+
+      // If we have coarse or precise location, request background permission
+      if (locationPermission.location === 'granted' || locationPermission.coarseLocation === 'granted') {
+        console.log('✅ Location permission granted')
+        
+        // The background-geolocation plugin will request background permission
+        // when it starts tracking
+        if (nativeBackgroundTracker) {
+          await nativeBackgroundTracker.requestPermission()
+        }
+      } else {
+        console.warn('⚠️ Location permission denied')
+      }
+    } catch (error) {
+      console.error('❌ Failed to request permissions:', error)
+    }
+  }
+
   useEffect(() => {
     const checkAuth = async () => {
-      setIsAuthenticated(authService.isAuthenticated())
-      
-      // Get user data to check role
-      if (authService.isAuthenticated()) {
-        try {
-          const user = await authService.getCurrentUser()
+      try {
+        const token = authService.getAccessToken()
+        const user = await authService.getCurrentUser()
+        
+        if (token && user) {
+          setIsAuthenticated(true)
           setCurrentUser(user)
           
           // Check user role
           const userRole = user?.role?.toLowerCase() || ''
           setIsEngineer(userRole.includes('engineer') || userRole === 'engineer')
           setIsAdmin(userRole.includes('admin') || userRole === 'admin' || userRole === 'manager')
-        } catch (error) {
-          console.error('Failed to get user:', error)
+          
+          // Request permissions for returning users
+          await requestPermissions()
+          
+          // Start tracking after permission check
+          if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
+            nativeBackgroundTracker.startBackgroundTracking().catch(() => {})
+          } else {
+            aggressiveTracker.startTracking().catch(() => {})
+          }
         }
+      } catch (error) {
+        console.error('Auth check failed:', error)
+      } finally {
+        setIsLoading(false)
       }
-      
-      setIsLoading(false)
     }
-    
+
     checkAuth()
-    
-    // Start location tracking when authenticated
-    if (authService.isAuthenticated()) {
-      // Use native background tracker on Android, web tracker on web
-      if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
-        nativeBackgroundTracker.startBackgroundTracking().catch(() => {})
-      } else {
-        aggressiveTracker.startTracking().catch(() => {})
-      }
-    }
   }, [])
 
   const handleAuthSuccess = async () => {
@@ -82,6 +113,9 @@ export default function HomePage() {
     } catch (error) {
       console.error('Failed to get user:', error)
     }
+    
+    // Request permissions first
+    await requestPermissions()
     
     // Start tracking immediately after login
     if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
