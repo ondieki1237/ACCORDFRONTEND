@@ -135,12 +135,12 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
         }];
       }
 
-      // Use localhost:4500 for testing
+      // Use production API
       const token = localStorage.getItem('accessToken');
       console.log('Sending visit data:', JSON.stringify(visitData, null, 2));
       console.log('Using token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
       
-      const response = await fetch('http://localhost:4500/api/visits', {
+      const response = await fetch('https://app.codewithseth.co.ke/api/visits', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

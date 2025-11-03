@@ -215,26 +215,30 @@ class NativeBackgroundTracker {
       minimumActivityRecognitionConfidence: 75, // 75% confidence
       disableMotionActivityUpdates: false,
       
-      // Android-specific - SILENT MODE (no visible notification)
+      // Android-specific - Persistent notification (required for background tracking)
       notification: {
-        title: "",
-        text: "",
+        title: "Location Tracking Active",
+        text: "Recording your field visits",
         color: "#00aeef",
         smallIcon: "mipmap/ic_launcher",
         largeIcon: "mipmap/ic_launcher",
-        priority: BackgroundGeolocation.NOTIFICATION_PRIORITY_MIN,
-        channelName: "Background Service",
-        sticky: false,
-        // Hide notification from status bar and notification drawer
-        layout: "",
-        actions: []
+        priority: BackgroundGeolocation.NOTIFICATION_PRIORITY_DEFAULT,
+        channelName: "Location Tracking",
+        sticky: true, // Make notification persistent
+        actions: [] // No actions needed
       },
       foregroundService: true, // Required for Android 8+
+      notificationPriority: BackgroundGeolocation.NOTIFICATION_PRIORITY_DEFAULT,
       
       // Battery optimization
-      locationUpdateInterval: 20000, // 20 seconds (frequent updates)
-      fastestLocationUpdateInterval: 10000, // 10 seconds minimum
+      locationUpdateInterval: 5000, // 5 seconds (very frequent updates)
+      fastestLocationUpdateInterval: 5000, // 5 seconds minimum
       deferTime: 0, // Don't defer location updates
+      
+      // Prevent battery optimization from killing the service
+      preventSuspend: true,
+      heartbeatInterval: 60, // Check every 60 seconds even when stationary
+      scheduleSync: false, // Don't use schedule-based sync (use real-time)
       
       // Network
       maxRetries: 3, // Retry failed uploads 3 times
