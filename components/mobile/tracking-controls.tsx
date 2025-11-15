@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { aggressiveTracker } from "@/lib/aggressive-tracker"
+import { nativeBackgroundTracker } from "@/lib/native-background-tracker"
+import { Capacitor } from "@capacitor/core"
 import { MapPin, Radio, Upload, X, CheckCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
@@ -13,17 +15,41 @@ export function TrackingControls() {
   const { toast } = useToast()
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setIsTracking(aggressiveTracker.isCurrentlyTracking())
-      setBufferSize(aggressiveTracker.getBufferSize())
-    }, 1000)
+    let interval: any = null
+
+    const refresh = async () => {
+      try {
+        if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
+          const tracking = await nativeBackgroundTracker.isTracking()
+          const pending = await nativeBackgroundTracker.getPendingLocationsCount()
+          setIsTracking(Boolean(tracking))
+          setBufferSize(pending || 0)
+        } else {
+          setIsTracking(aggressiveTracker.isCurrentlyTracking())
+          setBufferSize(aggressiveTracker.getBufferSize())
+        }
+      } catch (error) {
+        // Fallback to aggressive tracker
+        setIsTracking(aggressiveTracker.isCurrentlyTracking())
+        setBufferSize(aggressiveTracker.getBufferSize())
+      }
+    }
+
+    // Initial refresh and periodic
+    refresh()
+    interval = setInterval(refresh, 2000)
 
     return () => clearInterval(interval)
   }, [])
 
   const handleStartTracking = async () => {
     try {
-      await aggressiveTracker.startTracking()
+      if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
+        await nativeBackgroundTracker.requestPermission()
+        await nativeBackgroundTracker.startBackgroundTracking()
+      } else {
+        await aggressiveTracker.startTracking()
+      }
       toast({
         title: "✅ Tracking Started",
         description: "Location tracking is now active in the background",
@@ -38,7 +64,11 @@ export function TrackingControls() {
   }
 
   const handleStopTracking = () => {
-    aggressiveTracker.stopTracking()
+    if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
+      nativeBackgroundTracker.stopBackgroundTracking().catch(() => {})
+    } else {
+      aggressiveTracker.stopTracking()
+    }
     toast({
       title: "🛑 Tracking Stopped",
       description: "Location tracking has been disabled",
@@ -46,7 +76,11 @@ export function TrackingControls() {
   }
 
   const handleForceUpload = () => {
-    aggressiveTracker.forceUpload()
+    if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
+      nativeBackgroundTracker.syncNow().catch(() => {})
+    } else {
+      aggressiveTracker.forceUpload()
+    }
     toast({
       title: "📤 Uploading...",
       description: "Forcing upload of buffered locations",

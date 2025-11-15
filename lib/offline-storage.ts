@@ -9,11 +9,15 @@ export interface CachedData {
   user: any
   visits: any[]
   trails: any[]
+  leads: any[]
+  followUpVisits: any[]
   lastSyncTime: number
   pendingSync: {
     visits: any[]
     trails: any[]
     engineerVisits: any[]
+    leads: any[]
+    followUpVisits: any[]
   }
 }
 
@@ -28,6 +32,7 @@ class OfflineStorageService {
     USER_DATA: 'accord_user_data',
     VISITS_CACHE: 'accord_visits_cache',
     TRAILS_CACHE: 'accord_trails_cache',
+    LEADS_CACHE: 'accord_leads_cache',
     PENDING_SYNC: 'accord_pending_sync',
     LAST_SYNC: 'accord_last_sync',
     OFFLINE_STATUS: 'accord_offline_status'
@@ -136,9 +141,71 @@ class OfflineStorageService {
   }
 
   /**
+   * Cache leads data
+   */
+  async cacheLeads(leads: any[]): Promise<void> {
+    await Preferences.set({
+      key: OfflineStorageService.KEYS.LEADS_CACHE,
+      value: JSON.stringify({
+        data: leads,
+        timestamp: Date.now()
+      })
+    })
+    this.notifyDataUpdate()
+  }
+
+  /**
+   * Get cached leads
+   */
+  async getCachedLeads(): Promise<any[]> {
+    try {
+      const { value } = await Preferences.get({ key: OfflineStorageService.KEYS.LEADS_CACHE })
+      if (value) {
+        const cached = JSON.parse(value)
+        return cached.data || []
+      }
+      return []
+    } catch (error) {
+      console.error('Error getting cached leads:', error)
+      return []
+    }
+  }
+
+  /**
+   * Cache follow-up visits data
+   */
+  async cacheFollowUpVisits(followUpVisits: any[]): Promise<void> {
+    await Preferences.set({
+      key: 'accord_followup_visits_cache',
+      value: JSON.stringify({
+        data: followUpVisits,
+        timestamp: Date.now()
+      })
+    })
+    this.notifyDataUpdate()
+  }
+
+  /**
+   * Get cached follow-up visits
+   */
+  async getCachedFollowUpVisits(): Promise<any[]> {
+    try {
+      const { value } = await Preferences.get({ key: 'accord_followup_visits_cache' })
+      if (value) {
+        const cached = JSON.parse(value)
+        return cached.data || []
+      }
+      return []
+    } catch (error) {
+      console.error('Error getting cached follow-up visits:', error)
+      return []
+    }
+  }
+
+  /**
    * Add item to pending sync queue
    */
-  async addToPendingSync(type: 'visits' | 'trails' | 'engineerVisits', data: any): Promise<void> {
+  async addToPendingSync(type: 'visits' | 'trails' | 'engineerVisits' | 'leads' | 'followUpVisits', data: any): Promise<void> {
     try {
       const pending = await this.getPendingSync()
       pending[type].push({
@@ -163,23 +230,23 @@ class OfflineStorageService {
   /**
    * Get pending sync items
    */
-  async getPendingSync(): Promise<{ visits: any[], trails: any[], engineerVisits: any[] }> {
+  async getPendingSync(): Promise<{ visits: any[], trails: any[], engineerVisits: any[], leads: any[], followUpVisits: any[] }> {
     try {
       const { value } = await Preferences.get({ key: OfflineStorageService.KEYS.PENDING_SYNC })
       if (value) {
         return JSON.parse(value)
       }
-      return { visits: [], trails: [], engineerVisits: [] }
+      return { visits: [], trails: [], engineerVisits: [], leads: [], followUpVisits: [] }
     } catch (error) {
       console.error('Error getting pending sync:', error)
-      return { visits: [], trails: [], engineerVisits: [] }
+      return { visits: [], trails: [], engineerVisits: [], leads: [], followUpVisits: [] }
     }
   }
 
   /**
    * Clear pending sync items
    */
-  async clearPendingSync(type?: 'visits' | 'trails' | 'engineerVisits'): Promise<void> {
+  async clearPendingSync(type?: 'visits' | 'trails' | 'engineerVisits' | 'leads' | 'followUpVisits'): Promise<void> {
     try {
       if (type) {
         const pending = await this.getPendingSync()
@@ -199,13 +266,15 @@ class OfflineStorageService {
   }
 
   /**
-   * Get all cached data
+   * Get all cached data at once
    */
   async getAllCachedData(): Promise<CachedData> {
-    const [user, visits, trails, pending, lastSync] = await Promise.all([
+    const [user, visits, trails, leads, followUpVisits, pending, lastSync] = await Promise.all([
       this.getCachedUserData(),
       this.getCachedVisits(),
       this.getCachedTrails(),
+      this.getCachedLeads(),
+      this.getCachedFollowUpVisits(),
       this.getPendingSync(),
       this.getLastSyncTime()
     ])
@@ -214,6 +283,8 @@ class OfflineStorageService {
       user,
       visits,
       trails,
+      leads,
+      followUpVisits,
       lastSyncTime: lastSync,
       pendingSync: pending
     }
@@ -244,7 +315,7 @@ class OfflineStorageService {
    */
   private async updateOfflineStatus(): Promise<void> {
     const pending = await this.getPendingSync()
-    const pendingCount = pending.visits.length + pending.trails.length + pending.engineerVisits.length
+    const pendingCount = pending.visits.length + pending.trails.length + pending.engineerVisits.length + pending.leads.length
     
     const isOnline = typeof window !== 'undefined' && navigator.onLine
     const status: OfflineStatus = {
@@ -352,13 +423,15 @@ class OfflineStorageService {
     userDataSize: number
     visitsCount: number
     trailsCount: number
+    leadsCount: number
     pendingCount: number
     lastSync: Date | null
   }> {
-    const [user, visits, trails, pending, lastSync] = await Promise.all([
+    const [user, visits, trails, leads, pending, lastSync] = await Promise.all([
       this.getCachedUserData(),
       this.getCachedVisits(),
       this.getCachedTrails(),
+      this.getCachedLeads(),
       this.getPendingSync(),
       this.getLastSyncTime()
     ])
@@ -367,7 +440,8 @@ class OfflineStorageService {
       userDataSize: user ? JSON.stringify(user).length : 0,
       visitsCount: visits.length,
       trailsCount: trails.length,
-      pendingCount: pending.visits.length + pending.trails.length + pending.engineerVisits.length,
+      leadsCount: leads.length,
+      pendingCount: pending.visits.length + pending.trails.length + pending.engineerVisits.length + pending.leads.length,
       lastSync: lastSync ? new Date(lastSync) : null
     }
   }
@@ -414,10 +488,21 @@ class OfflineStorageService {
       }
     }
 
+    // Sync leads
+    for (const lead of pending.leads) {
+      try {
+        await apiService.createLead(lead)
+        // Remove from pending list after successful sync
+      } catch (error) {
+        console.error('Failed to sync lead:', error)
+        throw error
+      }
+    }
+
     // Clear all pending data after successful sync
     await Preferences.set({
       key: OfflineStorageService.KEYS.PENDING_SYNC,
-      value: JSON.stringify({ visits: [], trails: [], engineerVisits: [] })
+      value: JSON.stringify({ visits: [], trails: [], engineerVisits: [], leads: [] })
     })
 
     // Update last sync time

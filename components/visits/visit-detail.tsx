@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Building, Users, Clock, Calendar, ArrowLeft, FileText, Phone, Mail, Plus, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { FollowUpVisitForm } from "./followup-visit-form"
 
 interface Visit {
   id: string
@@ -39,13 +40,25 @@ interface FollowUp {
 
 export function VisitDetail({ visit, onBack }: VisitDetailProps) {
   const [showFollowUpForm, setShowFollowUpForm] = useState(false)
-  const [followUp, setFollowUp] = useState<FollowUp>({
-    action: "",
-    assignedTo: "",
-    dueDate: "",
-    priority: "medium",
-  })
   const { toast } = useToast()
+
+  // If showing follow-up form, render it fullscreen
+  if (showFollowUpForm) {
+    return (
+      <FollowUpVisitForm
+        onBack={() => setShowFollowUpForm(false)}
+        onSuccess={() => {
+          setShowFollowUpForm(false)
+          toast({
+            title: "Success",
+            description: "Follow-up visit recorded successfully"
+          })
+        }}
+        visitId={visit.id}
+        clientName={visit.client?.name}
+      />
+    )
+  }
 
   const calculateDuration = (startTime: string, endTime: string) => {
     const start = new Date(startTime)
@@ -80,67 +93,6 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
         return "bg-red-100 text-red-800"
       default:
         return "bg-gray-100 text-gray-800"
-    }
-  }
-
-  const handleFollowUpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Basic validation
-    if (!followUp.action || !followUp.assignedTo || !followUp.dueDate) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    // Debug: Log the data being sent
-    const dataToSend = {
-      visitId: visit.id,  // Ensure this is included and valid
-      action: followUp.action,
-      assignedTo: followUp.assignedTo,
-      dueDate: followUp.dueDate,
-      priority: followUp.priority,
-    }
-    console.log("Data being sent:", dataToSend)
-
-    try {
-      const token = localStorage.getItem("accessToken")
-      const response = await fetch("https://app.codewithseth.co.ke/api/follow-ups", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(dataToSend),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || `HTTP ${response.status}`)
-      }
-
-      toast({
-        title: "Follow-up created",
-        description: "Follow-up action has been scheduled successfully.",
-      })
-
-      setShowFollowUpForm(false)
-      setFollowUp({
-        action: "",
-        assignedTo: "",
-        dueDate: "",
-        priority: "medium",
-      })
-    } catch (error) {
-      console.error("Follow-up submission error:", error)
-      toast({
-        title: "Failed to create follow-up",
-        description: error instanceof Error ? error.message : "Please try again later.",
-        variant: "destructive",
-      })
     }
   }
 
@@ -295,90 +247,18 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-[#00aeef]" />
-            Follow-up Actions
+            Follow-up Visit
           </CardTitle>
-          <CardDescription>Schedule follow-up tasks for this visit</CardDescription>
+          <CardDescription>Record a follow-up visit for this client</CardDescription>
         </CardHeader>
         <CardContent>
-          {!showFollowUpForm ? (
-            <Button
-              onClick={() => setShowFollowUpForm(true)}
-              className="flex items-center gap-2 rounded-xl bg-[#00aeef] text-white shadow-[4px_4px_10px_#b0bec5,-4px_-4px_10px_#ffffff] hover:shadow-inner"
-            >
-              <Plus className="h-4 w-4" />
-              Add Follow-up
-            </Button>
-          ) : (
-            <form onSubmit={handleFollowUpSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="action">Follow-up Action</Label>
-                <Input
-                  id="action"
-                  placeholder="Call client, send proposal, schedule demo..."
-                  value={followUp.action}
-                  onChange={(e) => setFollowUp({ ...followUp, action: e.target.value })}
-                  required
-                  className="rounded-xl shadow-inner"
-                />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="assignedTo">Assigned To</Label>
-                  <Input
-                    id="assignedTo"
-                    placeholder="Employee ID or name"
-                    value={followUp.assignedTo}
-                    onChange={(e) => setFollowUp({ ...followUp, assignedTo: e.target.value })}
-                    required
-                    className="rounded-xl shadow-inner"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dueDate">Due Date</Label>
-                  <Input
-                    id="dueDate"
-                    type="date"
-                    value={followUp.dueDate}
-                    onChange={(e) => setFollowUp({ ...followUp, dueDate: e.target.value })}
-                    required
-                    className="rounded-xl shadow-inner"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="priority">Priority</Label>
-                <Select
-                  value={followUp.priority}
-                  onValueChange={(value: "low" | "medium" | "high") => setFollowUp({ ...followUp, priority: value })}
-                >
-                  <SelectTrigger className="rounded-xl shadow-inner">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  className="rounded-xl bg-[#00aeef] text-white shadow-[4px_4px_10px_#b0bec5,-4px_-4px_10px_#ffffff] hover:shadow-inner"
-                >
-                  Create Follow-up
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowFollowUpForm(false)}
-                  className="rounded-xl shadow-[4px_4px_10px_#d1d9e6,-4px_-4px_10px_#ffffff] hover:shadow-inner"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          )}
+          <Button
+            onClick={() => setShowFollowUpForm(true)}
+            className="flex items-center gap-2 rounded-xl bg-green-600 text-white shadow-[4px_4px_10px_#b0bec5,-4px_-4px_10px_#ffffff] hover:shadow-inner hover:bg-green-700"
+          >
+            <Plus className="h-4 w-4" />
+            Add Follow-up Visit
+          </Button>
         </CardContent>
       </Card>
     </div>

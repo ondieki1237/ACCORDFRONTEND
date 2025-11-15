@@ -25,6 +25,7 @@ interface Visit {
 interface VisitListProps {
   onCreateVisit: () => void
   onCreateEngineerVisit: () => void
+  onCreateFollowUp?: () => void
   onViewVisit: (visit: Visit) => void
   onViewEngineeringServices?: () => void
   showActions?: boolean

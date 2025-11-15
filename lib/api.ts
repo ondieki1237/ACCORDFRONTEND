@@ -112,6 +112,14 @@ class ApiService {
   }
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
     let token = authService.getAccessToken();
+    
+    console.log('🌐 API Request:', {
+      endpoint,
+      fullUrl: `${API_BASE_URL}${endpoint}`,
+      method: options.method || 'GET',
+      hasToken: !!token
+    })
+    
     let response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
@@ -182,7 +190,16 @@ class ApiService {
       throw new Error(`API request failed: ${errorMsg}`);
     }
 
-    return response.json();
+    const jsonResponse = await response.json();
+    
+    console.log('📥 API Response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      responseData: jsonResponse
+    })
+    
+    return jsonResponse;
   }
 
   async getDashboardOverview(startDate?: string, endDate?: string, region?: string): Promise<any> {
@@ -469,6 +486,176 @@ class ApiService {
     return this.makeRequest(`/trails/${trailId}`, {
       method: "PUT",
       body: JSON.stringify(trailData),
+    })
+  }
+
+  // Leads API methods
+  async getLeads(page = 1, limit = 20, filters: Record<string, string> = {}): Promise<any> {
+    try {
+      const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() })
+      Object.entries(filters).forEach(([k, v]) => params.append(k, v))
+      
+      const fullUrl = `/leads?${params.toString()}`
+      console.log('🔍 Fetching leads from:', `${API_BASE_URL}${fullUrl}`)
+      
+      const response = await this.makeRequest(fullUrl)
+      
+      console.log('✅ Leads API raw response:', response)
+      console.log('📊 Response structure:', {
+        hasSuccess: 'success' in response,
+        successValue: response.success,
+        hasData: 'data' in response,
+        dataType: typeof response.data,
+        isDataArray: Array.isArray(response.data),
+        dataLength: Array.isArray(response.data) ? response.data.length : 'N/A'
+      })
+      
+      // Cache successful response
+      if (response && Array.isArray(response.data)) {
+        console.log('💾 Caching', response.data.length, 'leads')
+        await offlineStorage.cacheLeads(response.data)
+      }
+      
+      return response
+    } catch (error) {
+      console.error('❌ Failed to fetch leads from server:', error)
+      
+      // Return cached data if offline
+      const cachedLeads = await offlineStorage.getCachedLeads()
+      console.log('📦 Using cached leads:', cachedLeads.length, 'items')
+      return {
+        data: cachedLeads,
+        _fromCache: true,
+        _cacheTimestamp: Date.now()
+      }
+    }
+  }
+
+  async getLeadById(leadId: string): Promise<any> {
+    return this.makeRequest(`/leads/${leadId}`)
+  }
+
+  async createLead(leadData: any): Promise<any> {
+    // Check if we're actually online before attempting API call
+    if (!navigator.onLine) {
+      console.log('Device is offline, saving lead locally')
+      await offlineStorage.addToPendingSync('leads', leadData)
+      return {
+        ...leadData,
+        id: `offline_lead_${Date.now()}`,
+        _createdOffline: true
+      }
+    }
+
+    try {
+      console.log('Creating lead online with payload:', leadData)
+      const response = await this.makeRequest("/leads", {
+        method: "POST",
+        body: JSON.stringify(leadData),
+      })
+      console.log('Lead created successfully:', response)
+      return response
+    } catch (error: any) {
+      console.error('Failed to create lead online:', error)
+      // Save to offline storage on failure
+      await offlineStorage.addToPendingSync('leads', leadData)
+      return {
+        ...leadData,
+        id: `offline_lead_${Date.now()}`,
+        _createdOffline: true
+      }
+    }
+  }
+
+  async updateLead(leadId: string, leadData: any): Promise<any> {
+    return this.makeRequest(`/leads/${leadId}`, {
+      method: "PUT",
+      body: JSON.stringify(leadData),
+    })
+  }
+
+  // Admin-level lead update (uses admin endpoint)
+  async updateLeadAsAdmin(leadId: string, leadData: any): Promise<any> {
+    return this.makeRequest(`/admin/leads/${leadId}`, {
+      method: "PUT",
+      body: JSON.stringify(leadData),
+    })
+  }
+
+  async deleteLead(leadId: string): Promise<void> {
+    return this.makeRequest(`/leads/${leadId}`, {
+      method: "DELETE",
+    })
+  }
+
+  // Follow-up Visit Management
+  async getFollowUpVisits(page = 1, limit = 50, filters: any = {}): Promise<any> {
+    const query = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+      ...filters,
+    })
+
+    try {
+      const response = await this.makeRequest(`/follow-up-visits?${query}`)
+      
+      // Cache the results for offline access
+      await offlineStorage.cacheFollowUpVisits(response.data || response)
+      
+      return response
+    } catch (error: any) {
+      // If offline or request fails, try to get cached data
+      if (!navigator.onLine || error.message.includes("NetworkError")) {
+        console.log("Offline - loading cached follow-up visits")
+        const cached = await offlineStorage.getCachedFollowUpVisits()
+        return {
+          data: cached,
+          total: cached.length,
+          page,
+          totalPages: Math.ceil(cached.length / limit),
+        }
+      }
+      throw error
+    }
+  }
+
+  async createFollowUpVisit(followUpData: any): Promise<any> {
+    try {
+      return await this.makeRequest("/follow-up-visits", {
+        method: "POST",
+        body: JSON.stringify(followUpData),
+      })
+    } catch (error: any) {
+      // If offline, queue the request
+      if (!navigator.onLine || error.message.includes("NetworkError")) {
+        console.log("Offline - queueing follow-up visit creation")
+        await offlineStorage.addToPendingSync('followUpVisits', followUpData)
+        return { success: true, offline: true, data: followUpData }
+      }
+      throw error
+    }
+  }
+
+  async updateFollowUpVisit(visitId: string, updateData: any): Promise<any> {
+    try {
+      return await this.makeRequest(`/follow-up-visits/${visitId}`, {
+        method: "PUT",
+        body: JSON.stringify(updateData),
+      })
+    } catch (error: any) {
+      // If offline, queue the request
+      if (!navigator.onLine || error.message.includes("NetworkError")) {
+        console.log("Offline - queueing follow-up visit update")
+        await offlineStorage.addToPendingSync('followUpVisits', { _id: visitId, ...updateData, _isUpdate: true })
+        return { success: true, offline: true, data: updateData }
+      }
+      throw error
+    }
+  }
+
+  async deleteFollowUpVisit(visitId: string): Promise<void> {
+    return this.makeRequest(`/follow-up-visits/${visitId}`, {
+      method: "DELETE",
     })
   }
 }
