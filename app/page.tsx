@@ -6,6 +6,7 @@ import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
 import { ProductManagement } from "@/components/products/product-management"
 import { LeadManagement } from "@/components/leads/lead-management"
+import { MachineManagement } from "@/components/machines/machine-management"
 import { VisitManagement } from "@/components/visits/visit-management"
 import { EngineerVisitManagement } from "@/components/visits/engineer-visit-management"
 import { PWAInstall } from "@/components/mobile/pwa-install"
@@ -217,7 +218,7 @@ export default function HomePage() {
       case "products":
         return <ProductManagement />
       case "leads":
-        return <LeadManagement />
+        return isEngineer ? <MachineManagement /> : <LeadManagement />
       case "profile":
         return <UserProfile />
       default:
@@ -246,7 +247,7 @@ export default function HomePage() {
           { id: "dashboard", label: "Home", icon: Home },
           { id: "visits", label: isEngineer ? "My Services" : "Visits", icon: isEngineer ? Wrench : Calendar },
           { id: "products", label: "Products", icon: ShoppingCart },
-          { id: "leads", label: "Leads", icon: TrendingUp },
+          { id: "leads", label: isEngineer ? "Machines" : "Leads", icon: isEngineer ? Wrench : TrendingUp },
           { id: "profile", label: "Profile", icon: User },
         ].map(({ id, label, icon: Icon }) => {
           const isActive = currentPage === id

@@ -658,6 +658,53 @@ class ApiService {
       method: "DELETE",
     })
   }
+
+  // Machines (Engineers) API
+  async getMachines(page = 1, limit = 20, filters: Record<string, string> = {}): Promise<any> {
+    const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() })
+    Object.entries(filters).forEach(([k, v]) => params.append(k, v))
+    try {
+      const response = await this.makeRequest(`/machines?${params.toString()}`)
+      // cache if necessary - not implemented yet
+      return response
+    } catch (error) {
+      console.warn('Failed to fetch machines:', error)
+      throw error
+    }
+  }
+
+  async getMachineById(id: string): Promise<any> {
+    return this.makeRequest(`/machines/${id}`)
+  }
+
+  async createMachine(machineData: any): Promise<any> {
+    try {
+      return await this.makeRequest(`/machines`, {
+        method: "POST",
+        body: JSON.stringify(machineData),
+      })
+    } catch (error: any) {
+      // if offline, you may queue; for now rethrow
+      if (!navigator.onLine) {
+        await offlineStorage.addToPendingSync('engineerVisits', machineData)
+        return { success: true, offline: true, data: machineData }
+      }
+      throw error
+    }
+  }
+
+  async updateMachine(id: string, data: any): Promise<any> {
+    return this.makeRequest(`/machines/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getMachineServices(id: string, page = 1, limit = 20, filters: Record<string, string> = {}): Promise<any> {
+    const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() })
+    Object.entries(filters).forEach(([k, v]) => params.append(k, v))
+    return this.makeRequest(`/machines/${id}/services?${params.toString()}`)
+  }
 }
 
 export const apiService = new ApiService()
