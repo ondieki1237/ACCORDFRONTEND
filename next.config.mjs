@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',   // ✅ forces Next.js to generate /out
+  // Not using static export for this mobile (Capacitor) app — allow runtime rendering
   eslint: {
     ignoreDuringBuilds: true,
   },
