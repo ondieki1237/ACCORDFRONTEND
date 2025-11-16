@@ -1,8 +1,6 @@
 import { authService } from '../auth';
 
-// Always use deployed API
-const API_BASE_URL = "https://app.codewithseth.co.ke/api"ort { authService } from "../auth"
-
+// Base URL (allow override via env var)
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://app.codewithseth.co.ke/api"
 
 async function makeRequest(path: string, options: RequestInit = {}) {

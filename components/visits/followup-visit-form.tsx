@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useId, useState } from "react"
+import { authService } from "@/lib/auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,14 +34,31 @@ export function FollowUpVisitForm({ onBack, onSuccess, initialData, visitId, cli
     followUpDate: initialData?.followUpDate || "",
     reason: initialData?.reason || "",
     outcome: initialData?.outcome || "",
-    needAnotherFollowUp: initialData?.needAnotherFollowUp || "",
+    // normalize incoming values: backend may send boolean or "yes"/"no"
+    needAnotherFollowUp: ((): boolean | null => {
+      const v = initialData?.needAnotherFollowUp
+      if (v === true || v === "yes") return true
+      if (v === false || v === "no") return false
+      return null
+    })(),
     whyAnotherFollowUp: initialData?.whyAnotherFollowUp || "",
     whyNoMoreFollowUp: initialData?.whyNoMoreFollowUp || "",
+    // optional/ux fields
+  assignedTo: initialData?.assignedTo || (authService.getCurrentUserSync() as any)?.id || (authService.getCurrentUserSync() as any)?._id || null,
+    priority: initialData?.priority || "medium",
+    reminder: initialData?.reminder || false,
+    reminderMethod: initialData?.reminderMethod || "none",
+    estimatedAction: initialData?.estimatedAction || "",
+    statusChangeNote: initialData?.statusChangeNote || "",
+    attachments: initialData?.attachments || [],
   })
   
   const { toast } = useToast()
 
-  const updateField = (field: keyof typeof formData, value: string) => {
+  // stable base id for inputs (useId must be called at component top-level)
+  const baseId = useId()
+
+  const updateField = (field: keyof typeof formData, value: any) => {
     setFormData({ ...formData, [field]: value })
   }
 
@@ -72,7 +90,7 @@ export function FollowUpVisitForm({ onBack, onSuccess, initialData, visitId, cli
       return false
     }
 
-    if (!formData.needAnotherFollowUp) {
+    if (formData.needAnotherFollowUp === null || formData.needAnotherFollowUp === undefined) {
       toast({
         title: "Missing Information",
         description: "Please indicate if another follow-up is needed",
@@ -81,7 +99,7 @@ export function FollowUpVisitForm({ onBack, onSuccess, initialData, visitId, cli
       return false
     }
 
-    if (formData.needAnotherFollowUp === "yes" && !formData.whyAnotherFollowUp.trim()) {
+    if (formData.needAnotherFollowUp === true && (!formData.whyAnotherFollowUp || formData.whyAnotherFollowUp.trim().length < 10)) {
       toast({
         title: "Missing Information",
         description: "Please explain why another follow-up is needed",
@@ -90,12 +108,22 @@ export function FollowUpVisitForm({ onBack, onSuccess, initialData, visitId, cli
       return false
     }
 
-    if (formData.needAnotherFollowUp === "no" && !formData.whyNoMoreFollowUp.trim()) {
+    if (formData.needAnotherFollowUp === false && (!formData.whyNoMoreFollowUp || formData.whyNoMoreFollowUp.trim().length < 10)) {
       toast({
         title: "Missing Information",
         description: "Please explain why no more follow-up is needed",
         variant: "destructive",
       })
+      return false
+    }
+
+    if (!formData.reason || formData.reason.trim().length < 10) {
+      toast({ title: "Missing Information", description: "Please enter a reason (min 10 characters)", variant: "destructive" })
+      return false
+    }
+
+    if (!formData.outcome || formData.outcome.trim().length < 10) {
+      toast({ title: "Missing Information", description: "Please enter an outcome (min 10 characters)", variant: "destructive" })
       return false
     }
 
@@ -113,18 +141,29 @@ export function FollowUpVisitForm({ onBack, onSuccess, initialData, visitId, cli
       // Import API service dynamically
       const { apiService } = await import("@/lib/api")
       
-      const followUpData = {
+  const currentUser = authService.getCurrentUserSync()
+      const followUpData: any = {
         visitId: visitId || null, // Link to the original visit if provided
         clientName: clientName || null,
         followUpDate: formData.followUpDate,
         reason: formData.reason.trim(),
         outcome: formData.outcome.trim(),
-        needAnotherFollowUp: formData.needAnotherFollowUp === "yes",
-        ...(formData.needAnotherFollowUp === "yes" 
-          ? { whyAnotherFollowUp: formData.whyAnotherFollowUp.trim() }
-          : { whyNoMoreFollowUp: formData.whyNoMoreFollowUp.trim() }
-        ),
+        needAnotherFollowUp: formData.needAnotherFollowUp === true,
         createdAt: new Date().toISOString(),
+        // optional UX fields
+  assignedTo: formData.assignedTo || (currentUser as any)?.id || (currentUser as any)?._id || null,
+        priority: formData.priority || "medium",
+        reminder: !!formData.reminder,
+        reminderMethod: formData.reminderMethod || "none",
+        estimatedAction: formData.estimatedAction || "",
+        statusChangeNote: formData.statusChangeNote || "",
+        attachments: Array.isArray(formData.attachments) ? formData.attachments : [],
+      }
+
+      if (formData.needAnotherFollowUp === true) {
+        followUpData.whyAnotherFollowUp = formData.whyAnotherFollowUp.trim()
+      } else {
+        followUpData.whyNoMoreFollowUp = formData.whyNoMoreFollowUp.trim()
       }
 
       await apiService.createFollowUpVisit(followUpData)
@@ -282,63 +321,104 @@ export function FollowUpVisitForm({ onBack, onSuccess, initialData, visitId, cli
                 </Label>
                 
                 <div className="space-y-3">
-                  <div 
-                    className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                      formData.needAnotherFollowUp === "yes" 
-                        ? "border-[#00aeef] bg-blue-50" 
-                        : "border-gray-200 hover:border-[#00aeef]"
-                    }`}
-                    onClick={() => {
-                      console.log('FollowUpVisitForm: selected YES for needAnotherFollowUp')
-                      updateField("needAnotherFollowUp", "yes")
-                      updateField("whyNoMoreFollowUp", "")
-                    }}
-                  >
-                    <div className={`size-5 shrink-0 rounded-full border-2 flex items-center justify-center ${
-                      formData.needAnotherFollowUp === "yes"
-                        ? "border-[#00aeef] bg-[#00aeef]"
-                        : "border-gray-300"
-                    }`}>
-                      {formData.needAnotherFollowUp === "yes" && (
-                        <div className="size-2 rounded-full bg-white" />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-1">
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      <span className="font-medium text-gray-700">Yes - Another follow-up is required</span>
-                    </div>
-                  </div>
-                  
-                  <div 
-                    className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                      formData.needAnotherFollowUp === "no" 
-                        ? "border-[#00aeef] bg-blue-50" 
-                        : "border-gray-200 hover:border-[#00aeef]"
-                    }`}
-                    onClick={() => {
-                      console.log('FollowUpVisitForm: selected NO for needAnotherFollowUp')
-                      updateField("needAnotherFollowUp", "no")
-                      updateField("whyAnotherFollowUp", "")
-                    }}
-                  >
-                    <div className={`size-5 shrink-0 rounded-full border-2 flex items-center justify-center ${
-                      formData.needAnotherFollowUp === "no"
-                        ? "border-[#00aeef] bg-[#00aeef]"
-                        : "border-gray-300"
-                    }`}>
-                      {formData.needAnotherFollowUp === "no" && (
-                        <div className="size-2 rounded-full bg-white" />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-1">
-                      <XCircle className="h-5 w-5 text-red-500" />
-                      <span className="font-medium text-gray-700">No - Follow-up complete</span>
-                    </div>
-                  </div>
+                  {/* use native radio inputs hidden for reliability on mobile/touch + keyboard */}
+                  {/** Generate stable ids for inputs using useId */}
+                  {
+                    (() => {
+                      const yesId = baseId + "-needAnother-yes"
+                      const noId = baseId + "-needAnother-no"
+
+                      return (
+                        <>
+                          <label
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === " " || e.key === "Enter") {
+                                e.preventDefault()
+                                updateField("needAnotherFollowUp", true)
+                                updateField("whyNoMoreFollowUp", "")
+                              }
+                            }}
+                            className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer block ${
+                              formData.needAnotherFollowUp === true
+                                ? "border-[#00aeef] bg-blue-50"
+                                : "border-gray-200 hover:border-[#00aeef]"
+                            }`}
+                          >
+                            <input
+                              name="needAnotherFollowUp"
+                              type="radio"
+                              className="sr-only"
+                              checked={formData.needAnotherFollowUp === true}
+                              onChange={() => {
+                                updateField("needAnotherFollowUp", true)
+                                updateField("whyNoMoreFollowUp", "")
+                              }}
+                            />
+                            <div className={`size-5 shrink-0 rounded-full border-2 flex items-center justify-center ${
+                              formData.needAnotherFollowUp === true
+                                ? "border-[#00aeef] bg-[#00aeef]"
+                                : "border-gray-300"
+                            }`}>
+                              {formData.needAnotherFollowUp === true && (
+                                <div className="size-2 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 flex-1">
+                              <CheckCircle2 className="h-5 w-5 text-green-500" />
+                              <span className="font-medium text-gray-700">Yes - Another follow-up is required</span>
+                            </div>
+                          </label>
+
+                          <label
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === " " || e.key === "Enter") {
+                                e.preventDefault()
+                                updateField("needAnotherFollowUp", false)
+                                updateField("whyAnotherFollowUp", "")
+                              }
+                            }}
+                            className={`flex items-center space-x-3 p-4 rounded-xl border-2 transition-all cursor-pointer block ${
+                              formData.needAnotherFollowUp === false
+                                ? "border-[#00aeef] bg-blue-50"
+                                : "border-gray-200 hover:border-[#00aeef]"
+                            }`}
+                          >
+                            <input
+                              name="needAnotherFollowUp"
+                              type="radio"
+                              className="sr-only"
+                              checked={formData.needAnotherFollowUp === false}
+                              onChange={() => {
+                                updateField("needAnotherFollowUp", false)
+                                updateField("whyAnotherFollowUp", "")
+                              }}
+                            />
+                            <div className={`size-5 shrink-0 rounded-full border-2 flex items-center justify-center ${
+                              formData.needAnotherFollowUp === false
+                                ? "border-[#00aeef] bg-[#00aeef]"
+                                : "border-gray-300"
+                            }`}>
+                              {formData.needAnotherFollowUp === false && (
+                                <div className="size-2 rounded-full bg-white" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 flex-1">
+                              <XCircle className="h-5 w-5 text-red-500" />
+                              <span className="font-medium text-gray-700">No - Follow-up complete</span>
+                            </div>
+                          </label>
+                        </>
+                      )
+                    })()
+                  }
                 </div>
 
                 {/* Conditional: Why another follow-up */}
-                {formData.needAnotherFollowUp === "yes" && (
+                {formData.needAnotherFollowUp === true && (
                   <Card className="rounded-xl bg-blue-50 border-2 border-blue-200">
                     <CardContent className="p-4 space-y-2">
                       <Label htmlFor="whyAnotherFollowUp" className="text-base font-semibold text-gray-700 flex items-center gap-2">
@@ -361,7 +441,7 @@ export function FollowUpVisitForm({ onBack, onSuccess, initialData, visitId, cli
                 )}
 
                 {/* Conditional: Why no more follow-up */}
-                {formData.needAnotherFollowUp === "no" && (
+                {formData.needAnotherFollowUp === false && (
                   <Card className="rounded-xl bg-green-50 border-2 border-green-200">
                     <CardContent className="p-4 space-y-2">
                       <Label htmlFor="whyNoMoreFollowUp" className="text-base font-semibold text-gray-700 flex items-center gap-2">
