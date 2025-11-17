@@ -20,10 +20,6 @@ import { UserProfile } from "@/components/profile/user-profile"
 import SalesDashboard from "@/components/saleshome/page"
 import EngineerDashboard from "@/components/saleshome/engineer-dashboard"
 import { Home, Calendar, ShoppingCart, User, Wrench, TrendingUp } from "lucide-react"
-import { aggressiveTracker } from "@/lib/aggressive-tracker"
-import { nativeBackgroundTracker } from "@/lib/native-background-tracker"
-import { Capacitor } from "@capacitor/core"
-import { Geolocation } from '@capacitor/geolocation'
 
 export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -33,36 +29,6 @@ export default function HomePage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isEngineer, setIsEngineer] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
-
-  // Request all necessary permissions on native platforms
-  const requestPermissions = async () => {
-    if (!Capacitor.isNativePlatform()) {
-      return
-    }
-
-    try {
-      console.log('📍 Requesting location permissions...')
-      
-      // Request location permission
-      const locationPermission = await Geolocation.requestPermissions()
-      console.log('Location permission status:', locationPermission)
-
-      // If we have coarse or precise location, request background permission
-      if (locationPermission.location === 'granted' || locationPermission.coarseLocation === 'granted') {
-        console.log('✅ Location permission granted')
-        
-        // The background-geolocation plugin will request background permission
-        // when it starts tracking
-        if (nativeBackgroundTracker) {
-          await nativeBackgroundTracker.requestPermission()
-        }
-      } else {
-        console.warn('⚠️ Location permission denied')
-      }
-    } catch (error) {
-      console.error('❌ Failed to request permissions:', error)
-    }
-  }
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -78,16 +44,6 @@ export default function HomePage() {
           const userRole = user?.role?.toLowerCase() || ''
           setIsEngineer(userRole.includes('engineer') || userRole === 'engineer')
           setIsAdmin(userRole.includes('admin') || userRole === 'admin' || userRole === 'manager')
-          
-          // Request permissions for returning users
-          await requestPermissions()
-          
-          // Start tracking after permission check
-          if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
-            nativeBackgroundTracker.startBackgroundTracking().catch(() => {})
-          } else {
-            aggressiveTracker.startTracking().catch(() => {})
-          }
         }
       } catch (error) {
         console.error('Auth check failed:', error)
@@ -113,16 +69,6 @@ export default function HomePage() {
       setIsAdmin(userRole.includes('admin') || userRole === 'admin' || userRole === 'manager')
     } catch (error) {
       console.error('Failed to get user:', error)
-    }
-    
-    // Request permissions first
-    await requestPermissions()
-    
-    // Start tracking immediately after login
-    if (Capacitor.isNativePlatform() && nativeBackgroundTracker) {
-      nativeBackgroundTracker.startBackgroundTracking().catch(() => {})
-    } else {
-      aggressiveTracker.startTracking().catch(() => {})
     }
   }
 
