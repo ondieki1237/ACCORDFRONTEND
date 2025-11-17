@@ -129,37 +129,69 @@ class ApiService {
       },
     });
 
+    // Check for new access token in response headers (auto-refresh)
+    const newAccessToken = response.headers.get('X-New-Access-Token') || response.headers.get('x-new-access-token');
+    if (newAccessToken) {
+      console.log('🔄 Auto-refreshing token from response headers');
+      // Update the access token
+      const currentRefreshToken = authService.getRefreshToken && authService.getRefreshToken();
+      if (currentRefreshToken) {
+        authService.setTokens && authService.setTokens(newAccessToken, currentRefreshToken);
+      } else {
+        // If no refresh token, just update access token
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('token', newAccessToken);
+        }
+      }
+    }
+
     // If unauthorized, try to refresh the token and retry once
     if (response.status === 401) {
+      console.log('⚠️ Token expired (401), attempting refresh...');
       const refreshToken = authService.getRefreshToken && authService.getRefreshToken();
       if (refreshToken) {
-        const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken }),
-        });
-        if (refreshResponse.ok) {
-          const refreshData = await refreshResponse.json();
-          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = refreshData.tokens || {};
-          if (newAccessToken && newRefreshToken) {
-            authService.setTokens && authService.setTokens(newAccessToken, newRefreshToken);
-            token = newAccessToken;
-            // Retry the original request with the new token
-            response = await fetch(`${API_BASE_URL}${endpoint}`, {
-              ...options,
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-                ...options.headers,
-              },
-            });
+        try {
+          const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken }),
+          });
+          if (refreshResponse.ok) {
+            const refreshData = await refreshResponse.json();
+            const { accessToken: newAccessToken, refreshToken: newRefreshToken } = refreshData.tokens || {};
+            if (newAccessToken && newRefreshToken) {
+              console.log('✅ Token refresh successful');
+              authService.setTokens && authService.setTokens(newAccessToken, newRefreshToken);
+              token = newAccessToken;
+              // Retry the original request with the new token
+              response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                ...options,
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                  ...options.headers,
+                },
+              });
+              
+              // Check for new token in retry response headers too
+              const retryNewToken = response.headers.get('X-New-Access-Token') || response.headers.get('x-new-access-token');
+              if (retryNewToken) {
+                console.log('🔄 Auto-refreshing token from retry response headers');
+                authService.setTokens && authService.setTokens(retryNewToken, newRefreshToken);
+              }
+            }
+          } else {
+            // Refresh failed, log out
+            console.error('❌ Token refresh failed');
+            authService.logout && authService.logout();
           }
-        } else {
-          // Refresh failed, log out
+        } catch (error) {
+          console.error('❌ Token refresh error:', error);
           authService.logout && authService.logout();
         }
       } else {
         // No refresh token, log out
+        console.error('❌ No refresh token available');
         authService.logout && authService.logout();
       }
     }

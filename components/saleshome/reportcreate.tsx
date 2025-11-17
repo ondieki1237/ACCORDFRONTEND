@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Check, Save, Clock, AlertCircle, Edit3, FileText, Calendar, TrendingUp, Users, ShoppingCart, Target, Zap, ArrowLeft } from "lucide-react";
+import { Check, Save, Clock, AlertCircle, Edit3, FileText, Calendar, TrendingUp, Target, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { authService, type User } from "@/lib/auth";
 import { Preferences } from "@capacitor/preferences";
@@ -33,22 +33,6 @@ const defaultSections: ReportSection[] = [
     color: "from-blue-500 to-cyan-500"
   },
   {
-    id: "visits",
-    title: "Customer Visits",
-    content: "",
-    isRequired: true,
-    icon: Users,
-    color: "from-green-500 to-emerald-500"
-  },
-  {
-    id: "quotations",
-    title: "Quotations Generated",
-    content: "",
-    isRequired: true,
-    icon: ShoppingCart,
-    color: "from-purple-500 to-pink-500"
-  },
-  {
     id: "leads",
     title: "New Leads",
     content: "",
@@ -63,14 +47,6 @@ const defaultSections: ReportSection[] = [
     isRequired: false,
     icon: AlertCircle,
     color: "from-red-500 to-rose-500"
-  },
-  {
-    id: "next-week",
-    title: "Next Week's Plan",
-    content: "",
-    isRequired: true,
-    icon: Zap,
-    color: "from-yellow-500 to-amber-500"
   }
 ];
 
