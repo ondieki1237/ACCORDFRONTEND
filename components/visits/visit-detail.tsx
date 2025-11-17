@@ -242,25 +242,6 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
           </CardContent>
         </Card>
       )}
-
-      <Card className="rounded-2xl shadow-[5px_5px_15px_#d1d9e6,-5px_-5px_15px_#ffffff] border-0">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-[#00aeef]" />
-            Follow-up Visit
-          </CardTitle>
-          <CardDescription>Record a follow-up visit for this client</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            onClick={() => setShowFollowUpForm(true)}
-            className="flex items-center gap-2 rounded-xl bg-green-600 text-white shadow-[4px_4px_10px_#b0bec5,-4px_-4px_10px_#ffffff] hover:shadow-inner hover:bg-green-700"
-          >
-            <Plus className="h-4 w-4" />
-            Add Follow-up Visit
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   )
 }
