@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Not using static export for this mobile (Capacitor) app — allow runtime rendering
+  // Static export for Capacitor mobile app
+  output: 'export',
+  distDir: 'out',
   eslint: {
     ignoreDuringBuilds: true,
   },
