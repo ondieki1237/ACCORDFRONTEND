@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +10,7 @@ import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Preferences } from "@capacitor/preferences"
+import facilitiesData from "../facilities.json"
 
 interface CreateVisitFormProps {
   onSuccess: () => void
@@ -53,7 +54,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
       const { blockNavigation } = require('@/lib/nav-blocker')
       blockNavigation('create-visit-form')
       return () => {
-        try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) {}
+        try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) { }
       }
     } catch (e) {
       return
@@ -79,10 +80,68 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   const { toast } = useToast()
   const [pendingVisits, setPendingVisitsState] = useState<any[]>([])
 
+  // Facilities typeahead
+  const [facilityQuery, setFacilityQuery] = useState('')
+  const [facilitySuggestions, setFacilitySuggestions] = useState<any[]>([])
+  const [isFacilitiesLoading, setIsFacilitiesLoading] = useState(false)
+  const [highlightIndex, setHighlightIndex] = useState(-1)
+  const facilitiesTimerRef = useRef<number | null>(null)
+  const facilitiesAbortRef = useRef<AbortController | null>(null)
+  const clientNameRef = useRef<HTMLInputElement | null>(null)
+  const closeTimeoutRef = useRef<number | null>(null)
+
   // Load pending visits from Preferences on mount
   useEffect(() => {
     getPendingVisits().then(setPendingVisitsState)
   }, [])
+
+  // Update facilityQuery when clientName input changes
+  useEffect(() => {
+    setFacilityQuery(formData.clientName)
+  }, [formData.clientName])
+
+  const fetchFacilities = useCallback(async (query: string) => {
+    if (!query || query.trim().length === 0) {
+      setFacilitySuggestions([])
+      setIsFacilitiesLoading(false)
+      return
+    }
+
+    // debounce
+    if (facilitiesTimerRef.current) {
+      window.clearTimeout(facilitiesTimerRef.current)
+    }
+
+    facilitiesTimerRef.current = window.setTimeout(async () => {
+      try {
+        setIsFacilitiesLoading(true)
+
+        const lowerQuery = query.toLowerCase()
+        const results = (facilitiesData as any[]).filter((f: any) => {
+          const name = f.properties?.name || ''
+          return name.toLowerCase().includes(lowerQuery)
+        }).slice(0, 10) // Limit to 10 suggestions
+
+        setFacilitySuggestions(results)
+      } catch (err) {
+        console.error('Facility lookup failed:', err)
+        setFacilitySuggestions([])
+      } finally {
+        setIsFacilitiesLoading(false)
+      }
+    }, 300)
+  }, [])
+
+  // Trigger fetch when facilityQuery changes
+  useEffect(() => {
+    fetchFacilities(facilityQuery)
+    return () => {
+      if (facilitiesTimerRef.current) {
+        window.clearTimeout(facilitiesTimerRef.current)
+      }
+      facilitiesAbortRef.current?.abort()
+    }
+  }, [facilityQuery, fetchFacilities])
 
   // Try to sync pending visits on mount and when online
   useEffect(() => {
@@ -114,7 +173,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   }, [toast])
 
   const updateField = (field: keyof VisitFormData, value: string | boolean) => {
-    setFormData({ ...formData, [field]: value })
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -123,7 +182,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
 
     try {
       const dateTime = new Date(`${formData.date}T${formData.startTime}:00Z`).toISOString()
-      
+
       const visitData: any = {
         date: dateTime,
         startTime: dateTime,
@@ -152,7 +211,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
       const token = localStorage.getItem('accessToken');
       console.log('Sending visit data:', JSON.stringify(visitData, null, 2));
       console.log('Using token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
-      
+
       const response = await fetch('https://app.codewithseth.co.ke/api/visits', {
         method: 'POST',
         headers: {
@@ -163,7 +222,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
       });
 
       console.log('Response status:', response.status);
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
         console.error('Backend error response:', errorData);
@@ -171,13 +230,13 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
       }
 
       const result = await response.json();
-      
+
       // Successfully saved online
       toast({
         title: "Visit Created",
         description: "Your client visit has been successfully saved to the database.",
       })
-      try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) {}
+      try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) { }
       onSuccess()
     } catch (error: any) {
       console.error('Visit creation error:', error)
@@ -192,7 +251,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   }
 
   const handleCancel = () => {
-    try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) {}
+    try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) { }
     onCancel()
   }
 
@@ -200,9 +259,9 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
     <div className="min-h-screen bg-gradient-to-br from-[#f1f4f9] via-[#e8ecf4] to-[#dfe5f0] p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header Section */}
-        <div 
+        <div
           className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] rounded-3xl p-6 md:p-8 shadow-xl"
-          style={{ 
+          style={{
             boxShadow: "12px 12px 24px rgba(0, 174, 239, 0.2), -12px -12px 24px rgba(255, 255, 255, 0.9)"
           }}
         >
@@ -218,9 +277,9 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                 Schedule and record visit details for your client
               </p>
             </div>
-            <Button 
-              variant="ghost" 
-              onClick={handleCancel} 
+            <Button
+              variant="ghost"
+              onClick={handleCancel}
               className="h-12 px-6 rounded-2xl bg-white/10 hover:bg-white/20 text-white border-white/30 backdrop-blur-sm shadow-lg"
             >
               Cancel
@@ -230,7 +289,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Visit Details */}
-          <Card 
+          <Card
             className="rounded-3xl bg-white border-0 overflow-hidden"
             style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
           >
@@ -276,7 +335,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
           </Card>
 
           {/* Client Information */}
-          <Card 
+          <Card
             className="rounded-3xl bg-white border-0 overflow-hidden"
             style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
           >
@@ -298,11 +357,121 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                 <Input
                   id="clientName"
                   placeholder="e.g. Nairobi General Hospital"
+                  ref={clientNameRef}
                   value={formData.clientName}
                   onChange={(e) => updateField("clientName", e.target.value)}
                   required
                   className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base"
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      setHighlightIndex((prev) => Math.min(prev + 1, facilitySuggestions.length - 1))
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      setHighlightIndex((prev) => Math.max(prev - 1, 0))
+                    } else if (e.key === 'Enter') {
+                      if (highlightIndex >= 0 && facilitySuggestions[highlightIndex]) {
+                        const f = facilitySuggestions[highlightIndex]
+                        const name = f?.properties?.name || f?.properties?.label || f?.name || ''
+                        updateField('clientName', name)
+
+                        // Auto-fill location
+                        const loc = (f?.geometry && f.geometry.type === 'Point') ? `${f.geometry.coordinates[1]}, ${f.geometry.coordinates[0]}` : (f?.properties?.address || '')
+                        updateField('location', loc)
+
+                        // Auto-fill client type based on amenity
+                        const amenity = (f?.properties?.amenity || '').toLowerCase()
+                        const healthcare = (f?.properties?.healthcare || '').toLowerCase()
+
+                        if (amenity.includes('hospital') || healthcare.includes('hospital')) {
+                          updateField('clientType', 'hospital')
+                          updateField('hospitalLevel', '4')
+                        } else if (amenity.includes('clinic') || healthcare.includes('clinic') || amenity.includes('dispensary')) {
+                          updateField('clientType', 'clinic')
+                          updateField('hospitalLevel', '2')
+                        } else if (amenity.includes('pharmacy')) {
+                          updateField('clientType', 'other')
+                          updateField('hospitalLevel', 'not_applicable')
+                        }
+
+                        setFacilitySuggestions([])
+                        setHighlightIndex(-1)
+                        e.preventDefault()
+                      }
+                    } else if (e.key === 'Escape') {
+                      setFacilitySuggestions([])
+                      setHighlightIndex(-1)
+                    }
+                  }}
+                  onBlur={() => {
+                    // Delay closing to allow click handlers on list items
+                    closeTimeoutRef.current = window.setTimeout(() => {
+                      setFacilitySuggestions([])
+                      setHighlightIndex(-1)
+                    }, 150)
+                  }}
+                  onFocus={() => {
+                    // If there's a query, refetch suggestions
+                    if (formData.clientName && formData.clientName.trim().length > 0) {
+                      setFacilityQuery(formData.clientName)
+                    }
+                    if (closeTimeoutRef.current) {
+                      window.clearTimeout(closeTimeoutRef.current)
+                      closeTimeoutRef.current = null
+                    }
+                  }}
                 />
+                {/* Suggestions dropdown */}
+                {facilitySuggestions.length > 0 && (
+                  <div className="relative">
+                    <ul className="absolute z-50 left-0 right-0 bg-white border mt-1 rounded-xl shadow-lg max-h-56 overflow-auto">
+                      {facilitySuggestions.map((f, idx) => {
+                        const name = f?.properties?.name || f?.properties?.label || f?.name || ''
+                        const subtitle = f?.properties?.amenity || f?.properties?.type || ''
+                        return (
+                          <li
+                            key={f._id || f.id || idx}
+                            onMouseDown={(ev) => {
+                              // prevent blur
+                              ev.preventDefault()
+                            }}
+                            onClick={() => {
+                              // populate fields
+                              updateField('clientName', name)
+
+                              // Auto-fill location
+                              const loc = (f?.geometry && f.geometry.type === 'Point') ? `${f.geometry.coordinates[1]}, ${f.geometry.coordinates[0]}` : (f?.properties?.address || '')
+                              updateField('location', loc)
+
+                              // Auto-fill client type based on amenity
+                              const amenity = (f?.properties?.amenity || '').toLowerCase()
+                              const healthcare = (f?.properties?.healthcare || '').toLowerCase()
+
+                              if (amenity.includes('hospital') || healthcare.includes('hospital')) {
+                                updateField('clientType', 'hospital')
+                                // Default to Level 4 for generic hospitals if not specified, user can change
+                                updateField('hospitalLevel', '4')
+                              } else if (amenity.includes('clinic') || healthcare.includes('clinic') || amenity.includes('dispensary')) {
+                                updateField('clientType', 'clinic')
+                                updateField('hospitalLevel', '2') // Dispensary/Clinic level
+                              } else if (amenity.includes('pharmacy')) {
+                                updateField('clientType', 'other')
+                                updateField('hospitalLevel', 'not_applicable')
+                              }
+
+                              setFacilitySuggestions([])
+                              setHighlightIndex(-1)
+                            }}
+                            className={`px-4 py-3 cursor-pointer hover:bg-gray-100 ${highlightIndex === idx ? 'bg-gray-100' : ''}`}
+                          >
+                            <div className="font-medium text-sm">{name}</div>
+                            {subtitle && <div className="text-xs text-gray-500">{subtitle}</div>}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )}
               </div>
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-2">
@@ -353,8 +522,8 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
             </CardContent>
           </Card>
 
-            {/* Visit Purpose and Outcome */}
-          <Card 
+          {/* Visit Purpose and Outcome */}
+          <Card
             className="rounded-3xl bg-white border-0 overflow-hidden"
             style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
           >
@@ -420,7 +589,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
           </Card>
 
           {/* Contact Person */}
-          <Card 
+          <Card
             className="rounded-3xl bg-white border-0 overflow-hidden"
             style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
           >
@@ -491,7 +660,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
           </Card>
 
           {/* Additional Notes */}
-          <Card 
+          <Card
             className="rounded-3xl bg-white border-0 overflow-hidden"
             style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
           >
@@ -521,13 +690,13 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
               </div>
             </CardContent>
           </Card>
-      
+
 
           {/* Submit Buttons */}
           <div className="flex flex-col md:flex-row gap-4 pt-4">
-            <Button 
-              type="submit" 
-              className="flex-1 h-14 px-8 text-lg font-semibold bg-gradient-to-r from-[#00aeef] to-[#0096d6] text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]" 
+            <Button
+              type="submit"
+              className="flex-1 h-14 px-8 text-lg font-semibold bg-gradient-to-r from-[#00aeef] to-[#0096d6] text-white rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.02]"
               disabled={isSubmitting}
               style={{
                 boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.3), -8px -8px 16px rgba(255, 255, 255, 0.8)"
@@ -545,20 +714,20 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                 </div>
               )}
             </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onCancel} 
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
               className="h-14 px-8 text-lg font-semibold rounded-2xl border-2 shadow-lg hover:shadow-xl transition-all duration-300"
             >
               Cancel
             </Button>
           </div>
         </form>
-        
+
         {/* Show pending visits badge/message */}
         {pendingVisits.length > 0 && (
-          <div 
+          <div
             className="bg-gradient-to-r from-yellow-100 to-amber-100 border-2 border-yellow-400 rounded-2xl p-4 flex items-center gap-3 shadow-lg"
           >
             <div className="bg-yellow-400 rounded-full p-2">

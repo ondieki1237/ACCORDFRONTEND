@@ -563,6 +563,14 @@ class ApiService {
     }
   }
 
+  // Facilities typeahead
+  async getFacilities(search: string, limit = 10, signal?: AbortSignal): Promise<any> {
+    const params = new URLSearchParams()
+    if (search) params.append('search', search)
+    params.append('limit', limit.toString())
+    return this.makeRequest(`/facilities?${params.toString()}`, { signal })
+  }
+
   async getLeadById(leadId: string): Promise<any> {
     return this.makeRequest(`/leads/${leadId}`)
   }
