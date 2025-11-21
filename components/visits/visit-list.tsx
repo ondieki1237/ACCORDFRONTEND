@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, WifiOff, Download, Edit2, Folder, ChevronDown, ChevronRight } from "lucide-react"
+import { Eye, WifiOff, Download, Edit2, Folder, ChevronDown, ChevronRight, Clock } from "lucide-react"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { authService } from "@/lib/auth"
@@ -98,19 +98,62 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
     }
   }
 
-  // Group visits by date (YYYY-MM-DD)
-  const groupedByDate: { [date: string]: Visit[] } = {}
+  // Helper: Get start of week (Monday)
+  const getStartOfWeek = (date: Date) => {
+    const d = new Date(date)
+    const day = d.getDay()
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1) // adjust when day is sunday
+    d.setDate(diff)
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
+
+  // Helper: Format week range
+  const formatWeekRange = (startDateStr: string) => {
+    const start = new Date(startDateStr)
+    const end = new Date(start)
+    end.setDate(start.getDate() + 6)
+
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+    const startFmt = start.toLocaleDateString('en-US', options)
+    const endFmt = end.toLocaleDateString('en-US', { ...options, year: 'numeric' })
+    return `${startFmt} - ${endFmt}`
+  }
+
+  // Group visits by Week (Monday start) and then by Day
+  const groupedData: {
+    [weekStart: string]: {
+      visits: Visit[], // All visits in the week
+      days: { [date: string]: Visit[] } // Visits grouped by day
+    }
+  } = {}
+
   visits.forEach((visit) => {
-    const dateKey = new Date(visit.date).toISOString().slice(0, 10)
-    if (!groupedByDate[dateKey]) groupedByDate[dateKey] = []
-    groupedByDate[dateKey].push(visit)
+    const date = new Date(visit.date)
+    const weekStart = getStartOfWeek(date).toISOString().slice(0, 10)
+    const dayKey = date.toISOString().slice(0, 10)
+
+    if (!groupedData[weekStart]) {
+      groupedData[weekStart] = { visits: [], days: {} }
+    }
+
+    // Add to week collection
+    groupedData[weekStart].visits.push(visit)
+
+    // Add to day collection
+    if (!groupedData[weekStart].days[dayKey]) {
+      groupedData[weekStart].days[dayKey] = []
+    }
+    groupedData[weekStart].days[dayKey].push(visit)
   })
-  const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a))
+
+  // Sort weeks descending
+  const sortedWeeks = Object.keys(groupedData).sort((a, b) => b.localeCompare(a))
 
 
   // Helper: convert visits array to XML string
   function visitsToXML(visits: Visit[]) {
-    const escape = (str: string) => typeof str === 'string' ? str.replace(/[<>&'\"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','\'':'&apos;','"':'&quot;'}[c]||c)) : str
+    const escape = (str: string) => typeof str === 'string' ? str.replace(/[<>&'\"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '\'': '&apos;', '"': '&quot;' }[c] || c)) : str
     function toXML(key: string, value: any, indent = '    '): string {
       if (value == null) return ''
       if (Array.isArray(value)) {
@@ -142,14 +185,13 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
       `\n</visits>`
   }
 
-  function handleDownloadFolder(dateKey: string) {
-    const visitsForDate = groupedByDate[dateKey]
-    const xml = visitsToXML(visitsForDate)
+  function handleDownloadFolder(visits: Visit[], filename: string) {
+    const xml = visitsToXML(visits)
     const blob = new Blob([xml], { type: "application/xml" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `visits-${dateKey}.xml`
+    a.download = filename
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -169,10 +211,10 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
     URL.revokeObjectURL(url)
   }
 
-  function handleEditFolder(dateKey: string) {
+  function handleEditFolder(label: string) {
     toast({
       title: "Edit Visits",
-      description: `Edit all visits for ${new Date(dateKey).toLocaleDateString()}`,
+      description: `Edit all visits for ${label}`,
     })
     // TODO: Implement bulk edit modal or redirect to edit page
   }
@@ -231,72 +273,115 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
         </Card>
       ) : (
         <div className="space-y-6">
-          {sortedDates.map((dateKey) => {
-            const isOpen = !!openFolders[dateKey]
+          {sortedWeeks.map((weekKey) => {
+            const weekData = groupedData[weekKey]
+            const isWeekOpen = !!openFolders[`week-${weekKey}`]
+            const sortedDays = Object.keys(weekData.days).sort((a, b) => b.localeCompare(a))
+
             return (
-              <Card key={dateKey} className="rounded-2xl bg-white shadow-md border-0">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2 cursor-pointer select-none" onClick={() => setOpenFolders(f => ({ ...f, [dateKey]: !f[dateKey] }))}>
+              <Card key={weekKey} className="rounded-2xl bg-white shadow-md border-0 overflow-hidden">
+                <CardContent className="p-0">
+                  {/* Week Header */}
+                  <div
+                    className="flex items-center justify-between p-4 cursor-pointer select-none hover:bg-gray-50 transition-colors"
+                    onClick={() => setOpenFolders(f => ({ ...f, [`week-${weekKey}`]: !f[`week-${weekKey}`] }))}
+                  >
                     <div className="flex items-center gap-2">
                       <Folder className="h-5 w-5 text-[#00aeef]" />
-                      <span className="font-bold text-lg text-gray-800">{new Date(dateKey).toLocaleDateString()}</span>
-                      {isOpen ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                      <span className="font-bold text-lg text-gray-800">{formatWeekRange(weekKey)}</span>
+                      {isWeekOpen ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                      <Badge variant="secondary" className="ml-2 text-xs">{weekData.visits.length} visits</Badge>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="rounded-xl flex items-center gap-1" onClick={e => { e.stopPropagation(); handleDownloadFolder(dateKey) }}>
-                        <Download className="h-4 w-4" /> Download
+                      <Button size="sm" variant="outline" className="rounded-xl flex items-center gap-1" onClick={e => { e.stopPropagation(); handleDownloadFolder(weekData.visits, `visits-week-${weekKey}.xml`) }}>
+                        <Download className="h-4 w-4" /> Week
                       </Button>
-                      <Button size="sm" variant="outline" className="rounded-xl flex items-center gap-1" onClick={e => { e.stopPropagation(); handleEditFolder(dateKey) }}>
+                      <Button size="sm" variant="outline" className="rounded-xl flex items-center gap-1" onClick={e => { e.stopPropagation(); handleEditFolder(`week of ${formatWeekRange(weekKey)}`) }}>
                         <Edit2 className="h-4 w-4" /> Edit
                       </Button>
                     </div>
                   </div>
-                  {isOpen && (
-                    <div className="grid gap-3 mt-2">
-                      {groupedByDate[dateKey].map((visit) => {
-                        const status = getVisitStatus(visit)
+
+                  {/* Days List (Nested) */}
+                  {isWeekOpen && (
+                    <div className="bg-gray-50/50 border-t">
+                      {sortedDays.map(dayKey => {
+                        const dayVisits = weekData.days[dayKey]
+                        const isDayOpen = !!openFolders[`day-${dayKey}`]
+
                         return (
-                          <Card
-                            key={visit._id}
-                            className="px-4 py-3 rounded-2xl bg-gray-50 flex items-center justify-between"
-                            style={{ boxShadow: "8px 8px 16px #d1d9e6, -8px -8px 16px #ffffff" }}
-                          >
-                            <div className="flex items-center justify-between w-full">
-                              {/* Left: Client Name, Status */}
-                              <div className="flex flex-col gap-1">
-                                <span className="text-gray-500 text-sm">
-                                  {visit.client?.name || "Unknown Client"}
-                                </span>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge
-                                    className={`rounded-full px-2 py-1 text-xs w-fit ${getStatusColor(status)}`}
-                                  >
-                                    {status}
-                                  </Badge>
-                                  {visit._createdOffline && (
-                                    <Badge
-                                      variant="outline"
-                                      className="rounded-full px-2 py-1 text-xs w-fit border-orange-300 text-orange-600 bg-orange-50 flex items-center gap-1"
-                                    >
-                                      <WifiOff className="h-3 w-3" />
-                                      Offline
-                                    </Badge>
-                                  )}
-                                </div>
+                          <div key={dayKey} className="border-b last:border-0">
+                            <div
+                              className="flex items-center justify-between px-6 py-3 cursor-pointer select-none hover:bg-gray-100 transition-colors"
+                              onClick={() => setOpenFolders(f => ({ ...f, [`day-${dayKey}`]: !f[`day-${dayKey}`] }))}
+                            >
+                              <div className="flex items-center gap-2 pl-4 border-l-2 border-[#00aeef]">
+                                <Folder className="h-4 w-4 text-gray-500" />
+                                <span className="font-medium text-gray-700">{new Date(dayKey).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                                {isDayOpen ? <ChevronDown className="h-3 w-3 text-gray-400" /> : <ChevronRight className="h-3 w-3 text-gray-400" />}
+                                <Badge variant="outline" className="ml-2 text-[10px] h-5">{dayVisits.length}</Badge>
                               </div>
-                              {/* Right: View Button */}
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => onViewVisit(visit)}
-                                className="rounded-xl px-4 py-2 flex items-center gap-1 text-[#00aeef] bg-gray-50 hover:bg-gray-100 transition"
-                                style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
-                              >
-                                <Eye className="h-4 w-4" />
-                                View
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs rounded-lg flex items-center gap-1" onClick={e => { e.stopPropagation(); handleDownloadFolder(dayVisits, `visits-${dayKey}.xml`) }}>
+                                  <Download className="h-3 w-3" /> Day
+                                </Button>
+                              </div>
                             </div>
-                          </Card>
+
+                            {/* Visits List */}
+                            {isDayOpen && (
+                              <div className="px-6 pb-3 pt-1 grid gap-2">
+                                {dayVisits.map((visit) => {
+                                  const status = getVisitStatus(visit)
+                                  return (
+                                    <Card
+                                      key={visit._id}
+                                      className="px-4 py-3 rounded-xl bg-white border shadow-sm flex items-center justify-between hover:shadow-md transition-shadow"
+                                    >
+                                      <div className="flex items-center justify-between w-full">
+                                        {/* Left: Client Name, Status */}
+                                        <div className="flex flex-col gap-1">
+                                          <span className="font-medium text-gray-700 text-sm">
+                                            {visit.client?.name || "Unknown Client"}
+                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs text-gray-400 flex items-center gap-1">
+                                              <Clock className="h-3 w-3" />
+                                              {new Date(visit.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                            <Badge
+                                              className={`rounded-full px-2 py-0.5 text-[10px] w-fit ${getStatusColor(status)}`}
+                                            >
+                                              {status}
+                                            </Badge>
+                                            {visit._createdOffline && (
+                                              <Badge
+                                                variant="outline"
+                                                className="rounded-full px-2 py-0.5 text-[10px] w-fit border-orange-300 text-orange-600 bg-orange-50 flex items-center gap-1"
+                                              >
+                                                <WifiOff className="h-3 w-3" />
+                                                Offline
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </div>
+                                        {/* Right: View Button */}
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => onViewVisit(visit)}
+                                          className="rounded-lg h-8 px-3 flex items-center gap-1 text-[#00aeef] hover:bg-[#00aeef]/10 transition"
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                          View
+                                        </Button>
+                                      </div>
+                                    </Card>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
                         )
                       })}
                     </div>

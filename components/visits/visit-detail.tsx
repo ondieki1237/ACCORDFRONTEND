@@ -132,12 +132,16 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
               <span className="font-medium">{new Date(visit.date).toLocaleDateString()}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Start Time:</span>
-              <span className="font-medium">{new Date(visit.startTime).toLocaleTimeString()}</span>
+              <span className="text-muted-foreground">Time:</span>
+              <span className="font-medium">
+                {new Date(visit.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">End Time:</span>
-              <span className="font-medium">{new Date(visit.endTime).toLocaleTimeString()}</span>
+              <span className="font-medium">
+                {new Date(visit.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Duration:</span>

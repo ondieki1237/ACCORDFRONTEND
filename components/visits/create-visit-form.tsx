@@ -181,7 +181,8 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
     setIsSubmitting(true)
 
     try {
-      const dateTime = new Date(`${formData.date}T${formData.startTime}:00Z`).toISOString()
+      // Create date object treating the input as local time (no Z suffix)
+      const dateTime = new Date(`${formData.date}T${formData.startTime}:00`).toISOString()
 
       const visitData: any = {
         date: dateTime,
