@@ -46,6 +46,19 @@ async function setPendingVisits(visits: any[]) {
 }
 
 export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
+  // Register a navigation block while this form is active so users cannot exit
+  // using hardware back or swipe navigation. Only allow exit via Record Visit or Cancel.
+  useEffect(() => {
+    try {
+      const { blockNavigation } = require('@/lib/nav-blocker')
+      blockNavigation('create-visit-form')
+      return () => {
+        try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) {}
+      }
+    } catch (e) {
+      return
+    }
+  }, [])
   const [formData, setFormData] = useState<VisitFormData>({
     date: new Date().toISOString().split("T")[0],
     startTime: "09:00",
@@ -164,6 +177,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
         title: "Visit Created",
         description: "Your client visit has been successfully saved to the database.",
       })
+      try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) {}
       onSuccess()
     } catch (error: any) {
       console.error('Visit creation error:', error)
@@ -175,6 +189,11 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleCancel = () => {
+    try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) {}
+    onCancel()
   }
 
   return (
@@ -201,7 +220,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
             </div>
             <Button 
               variant="ghost" 
-              onClick={onCancel} 
+              onClick={handleCancel} 
               className="h-12 px-6 rounded-2xl bg-white/10 hover:bg-white/20 text-white border-white/30 backdrop-blur-sm shadow-lg"
             >
               Cancel

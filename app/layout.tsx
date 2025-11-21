@@ -9,6 +9,7 @@ import QueryProvider from "../components/QueryProvider"
 import { ServiceWorkerRegistration } from "../components/service-worker-registration"
 import { OfflineIndicator } from "../components/mobile/offline-indicator-new"
 import { SyncButton } from "../components/mobile/sync-button"
+import BackButtonHandler from "../components/mobile/back-button-handler"
 
 export const metadata: Metadata = {
   title: "ACCORD Business Management",
@@ -60,6 +61,7 @@ export default function RootLayout({
       </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <ServiceWorkerRegistration />
+  <BackButtonHandler />
         <OfflineIndicator />
         <SyncButton />
         <QueryProvider>

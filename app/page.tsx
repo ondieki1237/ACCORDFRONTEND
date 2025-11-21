@@ -188,7 +188,17 @@ export default function HomePage() {
           </div>
         </main>
       </TouchGestures>
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.05)] rounded-t-3xl flex justify-around py-3 px-4 z-50 lg:hidden">
+      <nav
+        className="fixed left-0 right-0 bg-white/90 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.05)] rounded-t-3xl flex justify-around py-3 px-4 z-50 lg:hidden"
+        // Position controlled by nav behavior preference. When body has class 'nav-stay-above'
+        // we move the nav above the keyboard using --keyboard-offset. Default behavior is
+        // to stay down (nav-stay-below) so the nav remains at the bottom and does not shift.
+        style={
+          document?.body?.classList?.contains('nav-stay-above')
+            ? { bottom: 'var(--keyboard-offset, 0px)' }
+            : { bottom: 0 }
+        }
+      >
         {[
           { id: "dashboard", label: "Home", icon: Home },
           { id: "visits", label: isEngineer ? "My Services" : "Visits", icon: isEngineer ? Wrench : Calendar },

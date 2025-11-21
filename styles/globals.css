@@ -125,10 +125,12 @@
 }
 
 /* Mobile-first: remove outer container margins/padding to create a full-bleed
-   experience on phones. Keep large-screen behavior intact. These rules target
-   Tailwind's `.container` utility and common utility combinations that add
-   padding (e.g. `p-4`) so pages feel simpler on mobile devices. */
-@media (max-width: 1023px) {
+  experience on phones. Keep tablet+ and large-screen behavior intact. These
+  rules target Tailwind's `.container` utility and common utility
+  combinations that add padding (e.g. `p-4`) so pages feel simpler on
+  narrow phone devices. On tablets we want the centered container/layout
+  to remain so interfaces don't feel cramped or stretched. */
+@media (max-width: 767px) {
   .container {
     max-width: 100% !important;
     padding-left: 0 !important;

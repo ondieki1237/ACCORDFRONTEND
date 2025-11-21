@@ -57,11 +57,67 @@ export function MobileOptimizations() {
     updateSafeArea()
     window.addEventListener("resize", updateSafeArea)
 
+    // Keep track of keyboard / visual viewport changes to allow UI to move above
+    // the virtual keyboard on mobile. We expose the offset via CSS variable
+    // --keyboard-offset which components (like the bottom nav) can consume.
+    const updateKeyboardOffset = () => {
+      try {
+        const vv = (window as any).visualViewport
+        if (vv) {
+          const offset = Math.max(0, window.innerHeight - vv.height)
+          document.documentElement.style.setProperty('--keyboard-offset', `${Math.round(offset)}px`)
+        } else {
+          document.documentElement.style.setProperty('--keyboard-offset', `0px`)
+        }
+      } catch (e) {
+        document.documentElement.style.setProperty('--keyboard-offset', `0px`)
+      }
+    }
+
+    updateKeyboardOffset()
+    const vv = (window as any).visualViewport
+    if (vv) {
+      if (typeof vv.addEventListener === 'function') {
+        vv.addEventListener('resize', updateKeyboardOffset)
+        vv.addEventListener('scroll', updateKeyboardOffset)
+      } else {
+        // Some environments expose visualViewport but not as an EventTarget.
+        // Fallback to onresize/onscroll handlers.
+        vv.onresize = updateKeyboardOffset
+        vv.onscroll = updateKeyboardOffset
+      }
+    }
+
+    // Read nav behavior preference: 'stayAbove' or 'stayBelow'. Default to 'stayBelow'
+    try {
+      const pref = typeof window !== 'undefined' ? localStorage.getItem('navBehavior') : null
+      const behavior = pref || 'stayBelow'
+      if (behavior === 'stayAbove') {
+        document.body.classList.add('nav-stay-above')
+        document.body.classList.remove('nav-stay-below')
+      } else {
+        document.body.classList.add('nav-stay-below')
+        document.body.classList.remove('nav-stay-above')
+      }
+    } catch (e) {
+      document.body.classList.add('nav-stay-below')
+    }
+
     return () => {
       document.removeEventListener("focusin", preventZoom)
       document.removeEventListener("touchstart", preventPullToRefresh)
       document.removeEventListener("touchmove", preventPullToRefresh)
       window.removeEventListener("resize", updateSafeArea)
+      const vv = (window as any).visualViewport
+      if (vv) {
+        if (typeof vv.removeEventListener === 'function') {
+          vv.removeEventListener('resize', updateKeyboardOffset)
+          vv.removeEventListener('scroll', updateKeyboardOffset)
+        } else {
+          vv.onresize = null
+          vv.onscroll = null
+        }
+      }
       document.body.style.touchAction = ""
     }
   }, [])
