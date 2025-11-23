@@ -345,10 +345,6 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
                                             {visit.client?.name || "Unknown Client"}
                                           </span>
                                           <div className="flex items-center gap-2">
-                                            <span className="text-xs text-gray-400 flex items-center gap-1">
-                                              <Clock className="h-3 w-3" />
-                                              {new Date(visit.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
                                             <Badge
                                               className={`rounded-full px-2 py-0.5 text-[10px] w-fit ${getStatusColor(status)}`}
                                             >

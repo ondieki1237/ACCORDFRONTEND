@@ -17,24 +17,35 @@ interface CreateVisitFormProps {
   onCancel: () => void
 }
 
+interface Contact {
+  name: string
+  role: string
+  phone: string
+  email: string
+}
+
+interface ProductInterest {
+  name: string
+  notes: string
+}
+
 interface VisitFormData {
   date: string
-  startTime: string
   clientName: string
   clientType: string
   hospitalLevel: string
   location: string
   visitPurpose: string
   visitOutcome: string
-  contactName: string
-  contactRole: string
-  contactPhone: string
-  contactEmail: string
+  visitOutcome: string
+  contacts: Contact[]
+  productsOfInterest: ProductInterest[]
   isFollowUpRequired: boolean
   notes: string
 }
 
 const LOCAL_KEY = "pendingVisits"
+const DRAFT_KEY = "visitFormDraft"
 
 // Helper functions for Capacitor Preferences storage
 async function getPendingVisits(): Promise<any[]> {
@@ -62,17 +73,16 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   }, [])
   const [formData, setFormData] = useState<VisitFormData>({
     date: new Date().toISOString().split("T")[0],
-    startTime: "09:00",
     clientName: "",
     clientType: "hospital",
     hospitalLevel: "5",
     location: "",
     visitPurpose: "demo",
     visitOutcome: "successful",
-    contactName: "",
-    contactRole: "doctor",
-    contactPhone: "",
-    contactEmail: "",
+    visitPurpose: "demo",
+    visitOutcome: "successful",
+    contacts: [{ name: "", role: "doctor", phone: "", email: "" }],
+    productsOfInterest: [{ name: "", notes: "" }],
     isFollowUpRequired: false,
     notes: "",
   })
@@ -90,10 +100,39 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   const clientNameRef = useRef<HTMLInputElement | null>(null)
   const closeTimeoutRef = useRef<number | null>(null)
 
-  // Load pending visits from Preferences on mount
+  // Load pending visits and draft from Preferences on mount
   useEffect(() => {
     getPendingVisits().then(setPendingVisitsState)
-  }, [])
+
+    // Load draft
+    const loadDraft = async () => {
+      const { value } = await Preferences.get({ key: DRAFT_KEY })
+      if (value) {
+        try {
+          const draft = JSON.parse(value)
+          // Ensure draft has valid structure
+          setFormData(prev => ({ ...prev, ...draft }))
+          toast({
+            title: "Draft Restored",
+            description: "We restored your previous unsaved visit details.",
+          })
+        } catch (e) {
+          console.error("Failed to parse draft", e)
+        }
+      }
+    }
+    loadDraft()
+  }, [toast])
+
+  // Save draft whenever formData changes
+  useEffect(() => {
+    const saveDraft = async () => {
+      await Preferences.set({ key: DRAFT_KEY, value: JSON.stringify(formData) })
+    }
+    // Debounce saving to avoid excessive writes
+    const timeoutId = setTimeout(saveDraft, 1000)
+    return () => clearTimeout(timeoutId)
+  }, [formData])
 
   // Update facilityQuery when clientName input changes
   useEffect(() => {
@@ -176,13 +215,62 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  const addContact = () => {
+    setFormData(prev => ({
+      ...prev,
+      contacts: [...prev.contacts, { name: "", role: "doctor", phone: "", email: "" }]
+    }))
+  }
+
+  const removeContact = (index: number) => {
+    if (formData.contacts.length <= 1) return // Prevent removing the last contact
+    setFormData(prev => ({
+      ...prev,
+      contacts: prev.contacts.filter((_, i) => i !== index)
+    }))
+  }
+
+  const updateContact = (index: number, field: keyof Contact, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      contacts: prev.contacts.map((contact, i) =>
+        i === index ? { ...contact, [field]: value } : contact
+      )
+    }))
+  }
+
+  const addProduct = () => {
+    setFormData(prev => ({
+      ...prev,
+      productsOfInterest: [...prev.productsOfInterest, { name: "", notes: "" }]
+    }))
+  }
+
+  const removeProduct = (index: number) => {
+    if (formData.productsOfInterest.length <= 1) return
+    setFormData(prev => ({
+      ...prev,
+      productsOfInterest: prev.productsOfInterest.filter((_, i) => i !== index)
+    }))
+  }
+
+  const updateProduct = (index: number, field: keyof ProductInterest, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      productsOfInterest: prev.productsOfInterest.map((product, i) =>
+        i === index ? { ...product, [field]: value } : product
+      )
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
       // Create date object treating the input as local time (no Z suffix)
-      const dateTime = new Date(`${formData.date}T${formData.startTime}:00`).toISOString()
+      // Defaulting time to 09:00 as per user request to remove time input
+      const dateTime = new Date(`${formData.date}T09:00:00`).toISOString()
 
       const visitData: any = {
         date: dateTime,
@@ -198,14 +286,17 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
         notes: formData.notes,
       }
 
-      // Only add contacts if contact name is provided
-      if (formData.contactName && formData.contactName.trim() !== '') {
-        visitData.contacts = [{
-          name: formData.contactName,
-          role: formData.contactRole,
-          phone: formData.contactPhone,
-          email: formData.contactEmail,
-        }];
+      // Filter out empty contacts (must have at least a name)
+      const validContacts = formData.contacts.filter(c => c.name.trim() !== '')
+
+      if (validContacts.length > 0) {
+        visitData.contacts = validContacts
+      }
+
+      // Filter out empty products
+      const validProducts = formData.productsOfInterest.filter(p => p.name.trim() !== '')
+      if (validProducts.length > 0) {
+        visitData.productsOfInterest = validProducts
       }
 
       // Use production API
@@ -237,10 +328,32 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
         title: "Visit Created",
         description: "Your client visit has been successfully saved to the database.",
       })
+      // Clear draft
+      await Preferences.remove({ key: DRAFT_KEY })
       try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) { }
       onSuccess()
     } catch (error: any) {
       console.error('Visit creation error:', error)
+
+      // If network error, save to pending visits
+      if (!navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network request failed')) {
+        const pending = await getPendingVisits()
+        const newPending = [...pending, visitData]
+        await setPendingVisits(newPending)
+        setPendingVisitsState(newPending)
+
+        toast({
+          title: "Saved Offline",
+          description: "You are offline. Visit saved locally and will sync when online.",
+          variant: "default", // Use default or a specific offline variant if available
+        })
+        // Clear draft since it's now "saved" as pending
+        await Preferences.remove({ key: DRAFT_KEY })
+        try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) { }
+        onSuccess()
+        return
+      }
+
       toast({
         title: "Failed to Create Visit",
         description: error.message || "Could not save your visit. Please try again.",
@@ -251,7 +364,9 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
     }
   }
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
+    // Clear draft on cancel
+    await Preferences.remove({ key: DRAFT_KEY })
     try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) { }
     onCancel()
   }
@@ -314,20 +429,6 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                   type="date"
                   value={formData.date}
                   onChange={(e) => updateField("date", e.target.value)}
-                  required
-                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef] transition-all"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="startTime" className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-[#00aeef]" />
-                  Start Time *
-                </Label>
-                <Input
-                  id="startTime"
-                  type="time"
-                  value={formData.startTime}
-                  onChange={(e) => updateField("startTime", e.target.value)}
                   required
                   className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef] transition-all"
                 />
@@ -589,74 +690,183 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
             </CardContent>
           </Card>
 
-          {/* Contact Person */}
+          {/* Contact Persons */}
           <Card
             className="rounded-3xl bg-white border-0 overflow-hidden"
             style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
           >
             <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 pb-4">
-              <CardTitle className="flex items-center gap-3 text-[#00aeef]">
-                <div className="bg-orange-500 rounded-xl p-2">
-                  <Users className="h-6 w-6 text-white" />
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-3 text-[#00aeef]">
+                    <div className="bg-orange-500 rounded-xl p-2">
+                      <Users className="h-6 w-6 text-white" />
+                    </div>
+                    <span className="text-xl">People Met</span>
+                  </CardTitle>
+                  <CardDescription className="ml-14 text-base">Who did you meet with? (At least one required)</CardDescription>
                 </div>
-                <span className="text-xl">Contact Person</span>
-              </CardTitle>
-              <CardDescription className="ml-14 text-base">Primary contact at the facility (Compulsory)</CardDescription>
+                <Button
+                  type="button"
+                  onClick={addContact}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Add Person
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
-              <div className="space-y-2">
-                <Label htmlFor="contactName" className="text-base font-semibold text-gray-700 flex items-center gap-2">
-                  <Users className="h-4 w-4 text-orange-500" />
-                  Contact Name *
-                </Label>
-                <Input
-                  id="contactName"
-                  placeholder="e.g. Dr. Jane Doe"
-                  value={formData.contactName}
-                  onChange={(e) => updateField("contactName", e.target.value)}
-                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-orange-500 transition-all text-base"
-                />
-              </div>
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="contactRole" className="text-base font-semibold text-gray-700">Contact Role *</Label>
-                  <Select value={formData.contactRole} onValueChange={(v) => updateField("contactRole", v)}>
-                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="doctor">👨‍⚕️ Doctor</SelectItem>
-                      <SelectItem value="nurse">👩‍⚕️ Nurse</SelectItem>
-                      <SelectItem value="admin">� Administrator</SelectItem>
-                      <SelectItem value="procurement">� Procurement</SelectItem>
-                      <SelectItem value="it_manager">� IT Manager</SelectItem>
-                      <SelectItem value="ceo">� CEO</SelectItem>
-                      <SelectItem value="other">📋 Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {formData.contacts.map((contact, index) => (
+                <div key={index} className={`relative ${index > 0 ? 'pt-6 border-t border-gray-100' : ''}`}>
+                  {formData.contacts.length > 1 && (
+                    <div className="absolute right-0 top-0 md:top-6">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeContact(index)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg h-8 px-2"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor={`contactName-${index}`} className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                        <Users className="h-4 w-4 text-orange-500" />
+                        Name *
+                      </Label>
+                      <Input
+                        id={`contactName-${index}`}
+                        placeholder="e.g. Dr. Jane Doe"
+                        value={contact.name}
+                        onChange={(e) => updateContact(index, "name", e.target.value)}
+                        className="h-12 rounded-xl border-2 border-gray-200 focus:border-orange-500 transition-all text-base"
+                      />
+                    </div>
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={`contactRole-${index}`} className="text-base font-semibold text-gray-700">Role *</Label>
+                        <Select value={contact.role} onValueChange={(v) => updateContact(index, "role", v)}>
+                          <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
+                            <SelectValue placeholder="Select role" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="doctor">👨‍⚕️ Doctor</SelectItem>
+                            <SelectItem value="nurse">👩‍⚕️ Nurse</SelectItem>
+                            <SelectItem value="admin"> Administrator</SelectItem>
+                            <SelectItem value="procurement"> Procurement</SelectItem>
+                            <SelectItem value="it_manager"> IT Manager</SelectItem>
+                            <SelectItem value="ceo"> CEO</SelectItem>
+                            <SelectItem value="other">📋 Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`contactPhone-${index}`} className="text-base font-semibold text-gray-700">Phone Number</Label>
+                        <Input
+                          id={`contactPhone-${index}`}
+                          placeholder="+254712345678"
+                          value={contact.phone}
+                          onChange={(e) => updateContact(index, "phone", e.target.value)}
+                          className="h-12 rounded-xl border-2 border-gray-200 focus:border-orange-500 transition-all text-base"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`contactEmail-${index}`} className="text-base font-semibold text-gray-700">Email Address</Label>
+                      <Input
+                        id={`contactEmail-${index}`}
+                        type="email"
+                        placeholder="jane.doe@example.com"
+                        value={contact.email}
+                        onChange={(e) => updateContact(index, "email", e.target.value)}
+                        className="h-12 rounded-xl border-2 border-gray-200 focus:border-orange-500 transition-all text-base"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="contactPhone" className="text-base font-semibold text-gray-700">Phone Number</Label>
-                  <Input
-                    id="contactPhone"
-                    placeholder="+254712345678"
-                    value={formData.contactPhone}
-                    onChange={(e) => updateField("contactPhone", e.target.value)}
-                    className="h-12 rounded-xl border-2 border-gray-200 focus:border-orange-500 transition-all text-base"
-                  />
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Items of Interest */}
+          <Card
+            className="rounded-3xl bg-white border-0 overflow-hidden"
+            style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
+          >
+            <CardHeader className="bg-gradient-to-r from-indigo-50 to-purple-50 pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-3 text-[#00aeef]">
+                    <div className="bg-indigo-500 rounded-xl p-2">
+                      <CheckCircle2 className="h-6 w-6 text-white" />
+                    </div>
+                    <span className="text-xl">Items of Interest</span>
+                  </CardTitle>
+                  <CardDescription className="ml-14 text-base">Products the client is interested in</CardDescription>
                 </div>
+                <Button
+                  type="button"
+                  onClick={addProduct}
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Add Item
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="contactEmail" className="text-base font-semibold text-gray-700">Email Address</Label>
-                <Input
-                  id="contactEmail"
-                  type="email"
-                  placeholder="jane.doe@example.com"
-                  value={formData.contactEmail}
-                  onChange={(e) => updateField("contactEmail", e.target.value)}
-                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-orange-500 transition-all text-base"
-                />
-              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              {formData.productsOfInterest.map((product, index) => (
+                <div key={index} className={`relative ${index > 0 ? 'pt-6 border-t border-gray-100' : ''}`}>
+                  {formData.productsOfInterest.length > 1 && (
+                    <div className="absolute right-0 top-0 md:top-6">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeProduct(index)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg h-8 px-2"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor={`productName-${index}`} className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-indigo-500" />
+                        Product Name
+                      </Label>
+                      <Input
+                        id={`productName-${index}`}
+                        placeholder="e.g. Ultrasound Machine"
+                        value={product.name}
+                        onChange={(e) => updateProduct(index, "name", e.target.value)}
+                        className="h-12 rounded-xl border-2 border-gray-200 focus:border-indigo-500 transition-all text-base"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`productNotes-${index}`} className="text-base font-semibold text-gray-700">Notes / Specifications</Label>
+                      <Input
+                        id={`productNotes-${index}`}
+                        placeholder="e.g. Portable model preferred"
+                        value={product.notes}
+                        onChange={(e) => updateProduct(index, "notes", e.target.value)}
+                        className="h-12 rounded-xl border-2 border-gray-200 focus:border-indigo-500 transition-all text-base"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
 

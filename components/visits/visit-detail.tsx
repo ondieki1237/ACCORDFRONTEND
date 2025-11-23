@@ -131,25 +131,6 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
               <span className="text-muted-foreground">Date:</span>
               <span className="font-medium">{new Date(visit.date).toLocaleDateString()}</span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Time:</span>
-              <span className="font-medium">
-                {new Date(visit.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">End Time:</span>
-              <span className="font-medium">
-                {new Date(visit.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Duration:</span>
-              <Badge variant="outline" className="rounded-lg px-2 py-1 bg-white shadow-inner">
-                <Clock className="h-3 w-3 mr-1 text-[#00aeef]" />
-                {calculateDuration(visit.startTime, visit.endTime)}
-              </Badge>
-            </div>
           </CardContent>
         </Card>
 
