@@ -9,6 +9,7 @@ import { LeadManagement } from "@/components/leads/lead-management"
 import { MachineManagement } from "@/components/machines/machine-management"
 import { VisitManagement } from "@/components/visits/visit-management"
 import { EngineerVisitManagement } from "@/components/visits/engineer-visit-management"
+import { PricingManagement } from "@/components/engineering-pricing/pricing-management"
 import { PWAInstall } from "@/components/mobile/pwa-install"
 import { OfflineIndicator } from "@/components/mobile/offline-indicator"
 import { MobileOptimizations } from "@/components/mobile/mobile-optimizations"
@@ -86,7 +87,10 @@ export default function HomePage() {
   }
 
   const handleSwipeLeft = () => {
-    const pages = ["dashboard", "visits", "products", "leads", "profile"]
+    // Different pages for engineer vs sales
+    const pages = isEngineer 
+      ? ["dashboard", "visits", "expenses", "leads", "profile"]
+      : ["dashboard", "visits", "products", "leads", "profile"]
     const currentIndex = pages.indexOf(currentPage)
     if (currentIndex < pages.length - 1) {
       setCurrentPage(pages[currentIndex + 1])
@@ -94,7 +98,10 @@ export default function HomePage() {
   }
 
   const handleSwipeRight = () => {
-    const pages = ["dashboard", "visits", "products", "leads", "profile"]
+    // Different pages for engineer vs sales
+    const pages = isEngineer 
+      ? ["dashboard", "visits", "expenses", "leads", "profile"]
+      : ["dashboard", "visits", "products", "leads", "profile"]
     const currentIndex = pages.indexOf(currentPage)
     if (currentIndex > 0) {
       setCurrentPage(pages[currentIndex - 1])
@@ -163,6 +170,9 @@ export default function HomePage() {
         return isEngineer ? <EngineerVisitManagement /> : <VisitManagement />
       case "products":
         return <ProductManagement />
+      case "expenses":
+        // Engineer expenses/pricing section
+        return <PricingManagement engineerId={currentUser?.id || currentUser?._id} isAdmin={isAdmin} />
       case "leads":
         return isEngineer ? <MachineManagement /> : <LeadManagement />
       case "profile":
@@ -199,13 +209,22 @@ export default function HomePage() {
             : { bottom: 0 }
         }
       >
-        {[
-          { id: "dashboard", label: "Home", icon: Home },
-          { id: "visits", label: isEngineer ? "My Services" : "Visits", icon: isEngineer ? Wrench : Calendar },
-          { id: "products", label: "Products", icon: ShoppingCart },
-          { id: "leads", label: isEngineer ? "Machines" : "Leads", icon: isEngineer ? Wrench : TrendingUp },
-          { id: "profile", label: "Profile", icon: User },
-        ].map(({ id, label, icon: Icon }) => {
+        {(isEngineer 
+          ? [
+              { id: "dashboard", label: "Home", icon: Home },
+              { id: "visits", label: "My Services", icon: Wrench },
+              { id: "expenses", label: "Expenses", icon: ShoppingCart },
+              { id: "leads", label: "Machines", icon: Wrench },
+              { id: "profile", label: "Profile", icon: User },
+            ]
+          : [
+              { id: "dashboard", label: "Home", icon: Home },
+              { id: "visits", label: "Visits", icon: Calendar },
+              { id: "products", label: "Products", icon: ShoppingCart },
+              { id: "leads", label: "Leads", icon: TrendingUp },
+              { id: "profile", label: "Profile", icon: User },
+            ]
+        ).map(({ id, label, icon: Icon }) => {
           const isActive = currentPage === id
           return (
             <button

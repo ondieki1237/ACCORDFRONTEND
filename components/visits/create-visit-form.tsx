@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef, useCallback } from "react"
+import { VisitHistorySelector } from "./visit-history-selector"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -433,6 +434,41 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                   className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef] transition-all"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="visitPurpose" className="text-base font-semibold text-gray-700">Visit Purpose *</Label>
+                <Select value={formData.visitPurpose} onValueChange={(v) => updateField("visitPurpose", v)}>
+                  <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
+                    <SelectValue placeholder="Select purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="demo">🎯 Demo</SelectItem>
+                    <SelectItem value="followup">📞 Follow Up</SelectItem>
+                    <SelectItem value="installation">🔧 Installation</SelectItem>
+                    <SelectItem value="maintenance">🛠️ Maintenance</SelectItem>
+                    <SelectItem value="consultation">💬 Consultation</SelectItem>
+                    <SelectItem value="sales">💰 Sales</SelectItem>
+                    <SelectItem value="other">📋 Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {/* If purpose is followup, show visit history selector */}
+                {formData.visitPurpose === 'followup' && (
+                  <VisitHistorySelector
+                    onSelect={(facility) => {
+                      updateField('followUpOf', facility.name + facility.location + facility.level)
+                      updateField('clientName', facility.name)
+                      updateField('clientType', facility.type)
+                      updateField('hospitalLevel', facility.level)
+                      updateField('location', facility.location)
+                      setTimeout(() => {
+                        if (clientNameRef.current) {
+                          clientNameRef.current.focus()
+                        }
+                      }, 100)
+                    }}
+                    selectedVisitId={formData.followUpOf || ''}
+                  />
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -624,8 +660,8 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
             </CardContent>
           </Card>
 
-          {/* Visit Purpose and Outcome */}
-          <Card
+          {/* Visit Outcome and Follow-Up Required */}
+          <Card 
             className="rounded-3xl bg-white border-0 overflow-hidden"
             style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
           >
@@ -634,29 +670,12 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                 <div className="bg-purple-500 rounded-xl p-2">
                   <MapPin className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xl">Visit Purpose & Outcome</span>
+                <span className="text-xl">Visit Outcome & Follow-Up</span>
               </CardTitle>
-              <CardDescription className="ml-14 text-base">What is the goal of this visit?</CardDescription>
+              <CardDescription className="ml-14 text-base">What is the goal and result of this visit?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="visitPurpose" className="text-base font-semibold text-gray-700">Visit Purpose *</Label>
-                  <Select value={formData.visitPurpose} onValueChange={(v) => updateField("visitPurpose", v)}>
-                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
-                      <SelectValue placeholder="Select purpose" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="demo">🎯 Demo</SelectItem>
-                      <SelectItem value="followup">📞 Follow Up</SelectItem>
-                      <SelectItem value="installation">🔧 Installation</SelectItem>
-                      <SelectItem value="maintenance">�️ Maintenance</SelectItem>
-                      <SelectItem value="consultation">💬 Consultation</SelectItem>
-                      <SelectItem value="sales">� Sales</SelectItem>
-                      <SelectItem value="other">📋 Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="visitOutcome" className="text-base font-semibold text-gray-700">Visit Outcome *</Label>
                   <Select value={formData.visitOutcome} onValueChange={(v) => updateField("visitOutcome", v)}>
@@ -666,26 +685,26 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                     <SelectContent>
                       <SelectItem value="successful">✅ Successful</SelectItem>
                       <SelectItem value="pending">⏳ Pending</SelectItem>
-                      <SelectItem value="followup_required">� Follow-up Required</SelectItem>
+                      <SelectItem value="followup_required">🔁 Follow-up Required</SelectItem>
                       <SelectItem value="no_interest">🚫 No Interest</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="isFollowUpRequired" className="text-base font-semibold text-gray-700">Follow-Up Required? *</Label>
-                <Select
-                  value={formData.isFollowUpRequired.toString()}
-                  onValueChange={(v) => updateField("isFollowUpRequired", v === "true")}
-                >
-                  <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
-                    <SelectValue placeholder="Select follow-up requirement" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="false">❌ No</SelectItem>
-                    <SelectItem value="true">✅ Yes</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Label htmlFor="isFollowUpRequired" className="text-base font-semibold text-gray-700">Follow-Up Required? *</Label>
+                  <Select
+                    value={formData.isFollowUpRequired.toString()}
+                    onValueChange={(v) => updateField("isFollowUpRequired", v === "true")}
+                  >
+                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
+                      <SelectValue placeholder="Select follow-up requirement" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="false">❌ No</SelectItem>
+                      <SelectItem value="true">✅ Yes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -238,9 +238,9 @@ export default function SalesDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-[#f1f4f9] via-[#e8ecf4] to-[#dfe5f0] p-4 sm:p-6 lg:p-8">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* Header */}
-        <div 
+        <div
           className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] rounded-3xl p-6 md:p-8 shadow-xl"
-          style={{ 
+          style={{
             boxShadow: "12px 12px 24px rgba(0, 174, 239, 0.2), -12px -12px 24px rgba(255, 255, 255, 0.9)"
           }}
         >
@@ -271,9 +271,9 @@ export default function SalesDashboard() {
         </div>
 
         {/* Sales Summary Card */}
-        <Card 
+        <Card
           className="bg-white rounded-3xl border-0 shadow-xl overflow-hidden"
-          style={{ 
+          style={{
             boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.9)"
           }}
         >
@@ -283,59 +283,59 @@ export default function SalesDashboard() {
               Sales Performance
             </CardTitle>
           </CardHeader>
-        <CardContent>
-          {salesLoading ? (
-            <div className="space-y-2">
-              {[...Array(2)].map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : salesSummary ? (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div className="text-center flex-1">
-                  <div className="text-sm text-gray-600 mb-1">Total Sales</div>
-                  <div className="text-2xl font-bold text-[#00aeef]">
-                    Ksh {salesSummary.totalSales.toLocaleString()}
+          <CardContent>
+            {salesLoading ? (
+              <div className="space-y-2">
+                {[...Array(2)].map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : salesSummary ? (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div className="text-center flex-1">
+                    <div className="text-sm text-gray-600 mb-1">Total Sales</div>
+                    <div className="text-2xl font-bold text-[#00aeef]">
+                      Ksh {salesSummary.totalSales.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="h-12 w-px bg-gray-300"></div>
+                  <div className="text-center flex-1">
+                    <div className="text-sm text-gray-600 mb-1">Target</div>
+                    <div className="text-2xl font-bold text-gray-700">
+                      Ksh {salesSummary.totalTarget.toLocaleString()}
+                    </div>
                   </div>
                 </div>
-                <div className="h-12 w-px bg-gray-300"></div>
-                <div className="text-center flex-1">
-                  <div className="text-sm text-gray-600 mb-1">Target</div>
-                  <div className="text-2xl font-bold text-gray-700">
-                    Ksh {salesSummary.totalTarget.toLocaleString()}
+                <div className="relative">
+                  <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
+                    <div
+                      className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] h-4 rounded-full transition-all duration-1000 ease-out shadow-lg"
+                      style={{
+                        width: `${Math.min((salesSummary.totalSales / salesSummary.totalTarget) * 100, 100)}%`,
+                      }}
+                    ></div>
+                  </div>
+                  <div className="text-center mt-2">
+                    <span className="text-lg font-bold text-[#00aeef]">
+                      {((salesSummary.totalSales / salesSummary.totalTarget) * 100).toFixed(1)}%
+                    </span>
+                    <span className="text-sm text-gray-600 ml-2">of target achieved</span>
                   </div>
                 </div>
               </div>
-              <div className="relative">
-                <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden shadow-inner">
-                  <div
-                    className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] h-4 rounded-full transition-all duration-1000 ease-out shadow-lg"
-                    style={{
-                      width: `${Math.min((salesSummary.totalSales / salesSummary.totalTarget) * 100, 100)}%`,
-                    }}
-                  ></div>
-                </div>
-                <div className="text-center mt-2">
-                  <span className="text-lg font-bold text-[#00aeef]">
-                    {((salesSummary.totalSales / salesSummary.totalTarget) * 100).toFixed(1)}%
-                  </span>
-                  <span className="text-sm text-gray-600 ml-2">of target achieved</span>
-                </div>
+            ) : (
+              <div className="text-muted-foreground text-sm">
+                Sales data not available.
               </div>
-            </div>
-          ) : (
-            <div className="text-muted-foreground text-sm">
-              Sales data not available.
-            </div>
-          )}
-        </CardContent>
+            )}
+          </CardContent>
         </Card>
 
         {/* Quotations Card */}
-        <Card 
+        <Card
           className="bg-white rounded-3xl border-0 shadow-xl overflow-hidden"
-          style={{ 
+          style={{
             boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.9)"
           }}
         >
@@ -345,115 +345,110 @@ export default function SalesDashboard() {
               Requested Quotations
             </CardTitle>
           </CardHeader>
-        <CardContent>
-          {quotationsLoading ? (
-            <div className="space-y-2">
-              {[...Array(2)].map((_, i) => (
-                <Skeleton key={i} className="h-10 w-full rounded-xl" />
-              ))}
-            </div>
-          ) : quotationsError ? (
-            <div className="text-red-500">{quotationsError}</div>
-          ) : quotations.length === 0 ? (
-            <div className="text-muted-foreground text-sm">
-              No quotations requested yet.
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {quotations.map((q) => {
-                const isResponded =
-                  q.status === "responded" || !!q.response || q.responded;
-                return (
-                  <div
-                    key={q._id}
-                    className={`flex items-center justify-between px-4 py-4 rounded-2xl transition-all duration-300 ${
-                      isResponded
-                        ? "bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 shadow-lg"
-                        : "bg-white border-2 border-gray-200 hover:border-[#00aeef]/30 shadow-md hover:shadow-lg"
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <div className="font-semibold text-base text-gray-800">{q.hospital}</div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        {q.equipmentRequired}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(q.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {isResponded ? (
-                        <div className="flex items-center gap-2 bg-green-100 px-3 py-2 rounded-xl">
-                          <CheckCircle className="text-green-600 w-5 h-5" />
-                          <span className="text-sm text-green-700 font-semibold">
-                            Responded
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-xl">
-                          <Clock className="text-gray-500 w-5 h-5" />
-                          <span className="text-sm text-gray-600">Pending</span>
-                        </div>
-                      )}
-                      <Checkbox
-                        checked={checked[q._id] ?? isResponded}
-                        onCheckedChange={() =>
-                          setChecked((prev) => ({
-                            ...prev,
-                            [q._id]: !(prev[q._id] ?? isResponded),
-                          }))
-                        }
-                        disabled={!isResponded}
-                        className={`border-2 h-5 w-5 ${
-                          isResponded ? "border-green-500" : "border-gray-400"
+          <CardContent>
+            {quotationsLoading ? (
+              <div className="space-y-2">
+                {[...Array(2)].map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full rounded-xl" />
+                ))}
+              </div>
+            ) : quotationsError ? (
+              <div className="text-red-500">{quotationsError}</div>
+            ) : quotations.length === 0 ? (
+              <div className="text-muted-foreground text-sm">
+                No quotations requested yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {quotations.map((q) => {
+                  const isResponded =
+                    q.status === "responded" || !!q.response || q.responded;
+                  return (
+                    <div
+                      key={q._id}
+                      className={`flex items-center justify-between px-4 py-4 rounded-2xl transition-all duration-300 ${isResponded
+                          ? "bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 shadow-lg"
+                          : "bg-white border-2 border-gray-200 hover:border-[#00aeef]/30 shadow-md hover:shadow-lg"
                         }`}
-                      />
+                    >
+                      <div className="flex-1">
+                        <div className="font-semibold text-base text-gray-800">{q.hospital}</div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {q.equipmentRequired}
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(q.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {isResponded ? (
+                          <div className="flex items-center gap-2 bg-green-100 px-3 py-2 rounded-xl">
+                            <CheckCircle className="text-green-600 w-5 h-5" />
+                            <span className="text-sm text-green-700 font-semibold">
+                              Responded
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-xl">
+                            <Clock className="text-gray-500 w-5 h-5" />
+                            <span className="text-sm text-gray-600">Pending</span>
+                          </div>
+                        )}
+                        <Checkbox
+                          checked={checked[q._id] ?? isResponded}
+                          onCheckedChange={() =>
+                            setChecked((prev) => ({
+                              ...prev,
+                              [q._id]: !(prev[q._id] ?? isResponded),
+                            }))
+                          }
+                          disabled={!isResponded}
+                          className={`border-2 h-5 w-5 ${isResponded ? "border-green-500" : "border-gray-400"
+                            }`}
+                        />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Tabs */}
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden"
-          style={{ 
+          style={{
             boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.9)"
           }}
         >
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setActiveTab("reports")}
-              className={`flex-1 py-4 text-center text-sm font-semibold transition-all duration-300 ${
-                activeTab === "reports"
+              className={`flex-1 py-4 text-center text-sm font-semibold transition-all duration-300 ${activeTab === "reports"
                   ? "border-b-4 border-[#00aeef] text-[#00aeef] bg-[#00aeef]/5"
                   : "text-gray-500 hover:text-[#00aeef] hover:bg-gray-50"
-              }`}
+                }`}
             >
               <FileText className="w-4 h-4 mx-auto mb-1" />
               Reports
             </button>
             <button
               onClick={() => setActiveTab("visits")}
-              className={`flex-1 py-4 text-center text-sm font-semibold transition-all duration-300 ${
-                activeTab === "visits"
+              className={`flex-1 py-4 text-center text-sm font-semibold transition-all duration-300 ${activeTab === "visits"
                   ? "border-b-4 border-[#00aeef] text-[#00aeef] bg-[#00aeef]/5"
                   : "text-gray-500 hover:text-[#00aeef] hover:bg-gray-50"
-              }`}
+                }`}
             >
               <Users className="w-4 h-4 mx-auto mb-1" />
               Visits
             </button>
             <button
               onClick={() => setActiveTab("communications")}
-              className={`flex-1 py-4 text-center text-sm font-semibold transition-all duration-300 ${
-                activeTab === "communications"
+              className={`flex-1 py-4 text-center text-sm font-semibold transition-all duration-300 ${activeTab === "communications"
                   ? "border-b-4 border-[#00aeef] text-[#00aeef] bg-[#00aeef]/5"
                   : "text-gray-500 hover:text-[#00aeef] hover:bg-gray-50"
-              }`}
+                }`}
             >
               <MessageSquare className="w-4 h-4 mx-auto mb-1" />
               Communications
@@ -476,12 +471,12 @@ export default function SalesDashboard() {
                       <DialogHeader>
                         <DialogTitle>Create Weekly Report</DialogTitle>
                       </DialogHeader>
-                      <CreateReport 
-                        onClose={() => setShowCreateReport(false)} 
+                      <CreateReport
+                        onClose={() => setShowCreateReport(false)}
                         onSuccess={() => {
                           setShowCreateReport(false);
                           fetchReports();
-                        }} 
+                        }}
                       />
                     </DialogContent>
                   </Dialog>
@@ -489,21 +484,29 @@ export default function SalesDashboard() {
                     {reports.length > 0 && (
                       <Button
                         variant="outline"
-                        onClick={() => setActiveTab("reports")}
+                        onClick={() => router.push("/reports")}
                         className="flex-1 border-2 border-[#00aeef]/30 hover:border-[#00aeef] text-[#00aeef] font-semibold rounded-xl px-4 py-6 transition-all duration-300 hover:bg-[#00aeef]/5"
                       >
                         <FileText className="w-4 h-4 mr-2" />
                         View Reports ({reports.length})
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push("/planners")}
+                      className="border-2 border-[#00aeef]/30 hover:border-[#00aeef] text-[#00aeef] font-semibold rounded-xl px-4 py-6 transition-all duration-300 hover:bg-[#00aeef]/5"
+                    >
+                      <Calendar className="w-4 h-4 mr-2" />
+                      View Planners
+                    </Button>
                     <Dialog open={plannerOpen} onOpenChange={setPlannerOpen}>
                       <DialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="border-2 border-[#00aeef]/30 hover:border-[#00aeef] text-[#00aeef] font-semibold rounded-xl px-4 py-6 transition-all duration-300 hover:bg-[#00aeef]/5"
                         >
                           <Calendar className="w-4 h-4 mr-2" />
-                          Planner
+                          Create Planner
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto w-[95vw]">

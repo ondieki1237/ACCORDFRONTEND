@@ -745,6 +745,37 @@ class ApiService {
     Object.entries(filters).forEach(([k, v]) => params.append(k, v))
     return this.makeRequest(`/machines/${id}/services?${params.toString()}`)
   }
+
+  // Engineering Pricing (Expenses) API
+  async getEngineeringPricing(page = 1, limit = 20, filters: Record<string, string> = {}): Promise<any> {
+    const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() })
+    Object.entries(filters).forEach(([k, v]) => params.append(k, v))
+    return this.makeRequest(`/engineering-pricing?${params.toString()}`)
+  }
+
+  async getEngineeringPricingById(id: string): Promise<any> {
+    return this.makeRequest(`/engineering-pricing/${id}`)
+  }
+
+  async createEngineeringPricing(pricingData: any): Promise<any> {
+    return this.makeRequest(`/engineering-pricing`, {
+      method: "POST",
+      body: JSON.stringify(pricingData),
+    })
+  }
+
+  async updateEngineeringPricing(id: string, data: any): Promise<any> {
+    return this.makeRequest(`/engineering-pricing/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteEngineeringPricing(id: string): Promise<void> {
+    return this.makeRequest(`/engineering-pricing/${id}`, {
+      method: "DELETE",
+    })
+  }
 }
 
 export const apiService = new ApiService()
