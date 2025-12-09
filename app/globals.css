@@ -272,4 +272,14 @@
   .h-screen-safe {
     height: calc(100vh - var(--safe-area-top) - var(--safe-area-bottom));
   }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }

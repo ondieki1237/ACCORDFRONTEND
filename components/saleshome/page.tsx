@@ -422,36 +422,36 @@ export default function SalesDashboard() {
             boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.9)"
           }}
         >
-          <div className="flex border-b border-gray-200">
+          <div className="flex overflow-x-auto border-b border-gray-200 scrollbar-hide">
             <button
               onClick={() => setActiveTab("reports")}
-              className={`flex-1 py-4 text-center text-sm font-semibold transition-all duration-300 ${activeTab === "reports"
+              className={`flex-1 min-w-[90px] py-4 text-center text-sm font-semibold transition-all duration-300 ${activeTab === "reports"
                   ? "border-b-4 border-[#00aeef] text-[#00aeef] bg-[#00aeef]/5"
                   : "text-gray-500 hover:text-[#00aeef] hover:bg-gray-50"
                 }`}
             >
               <FileText className="w-4 h-4 mx-auto mb-1" />
-              Reports
+              <span className="text-xs">Reports</span>
             </button>
             <button
               onClick={() => setActiveTab("visits")}
-              className={`flex-1 py-4 text-center text-sm font-semibold transition-all duration-300 ${activeTab === "visits"
+              className={`flex-1 min-w-[90px] py-4 text-center text-sm font-semibold transition-all duration-300 ${activeTab === "visits"
                   ? "border-b-4 border-[#00aeef] text-[#00aeef] bg-[#00aeef]/5"
                   : "text-gray-500 hover:text-[#00aeef] hover:bg-gray-50"
                 }`}
             >
               <Users className="w-4 h-4 mx-auto mb-1" />
-              Visits
+              <span className="text-xs">Visits</span>
             </button>
             <button
               onClick={() => setActiveTab("communications")}
-              className={`flex-1 py-4 text-center text-sm font-semibold transition-all duration-300 ${activeTab === "communications"
+              className={`flex-1 min-w-[90px] py-4 text-center text-sm font-semibold transition-all duration-300 ${activeTab === "communications"
                   ? "border-b-4 border-[#00aeef] text-[#00aeef] bg-[#00aeef]/5"
                   : "text-gray-500 hover:text-[#00aeef] hover:bg-gray-50"
                 }`}
             >
               <MessageSquare className="w-4 h-4 mx-auto mb-1" />
-              Communications
+              <span className="text-xs">Comms</span>
             </button>
           </div>
 
