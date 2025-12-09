@@ -1,13 +1,14 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { DollarSign, MapPin, Building, Wrench, Plus, X, CheckCircle2 } from "lucide-react"
+import { DollarSign, MapPin, Building, Wrench, Plus, X, CheckCircle2, Search, Loader2, ChevronDown } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { apiService } from "@/lib/api"
 
 interface PricingFormProps {
   onSuccess: () => void
@@ -20,12 +21,31 @@ interface OtherCharge {
   amount: string
 }
 
+interface Machine {
+  _id: string
+  name?: string
+  model?: string
+  serialNumber?: string
+  facility?: {
+    name?: string
+    location?: string
+  }
+  lastServiceDate?: string
+  nextServiceDate?: string
+}
+
+interface SortOption {
+  key: 'facility' | 'location' | 'machine'
+  label: string
+}
+
 interface PricingFormData {
   activityType: string
   fare: string
   location: string
   facility: string
   machine: string
+  machineId?: string
   otherCharges: OtherCharge[]
 }
 
@@ -36,10 +56,126 @@ export function PricingForm({ onSuccess, onCancel, engineerId }: PricingFormProp
     location: "",
     facility: "",
     machine: "",
+    machineId: "",
     otherCharges: [{ description: "", amount: "" }]
   })
+  
+  // Machine search state
+  const [searchQuery, setSearchQuery] = useState("")
+  const [machines, setMachines] = useState<Machine[]>([])
+  const [filteredMachines, setFilteredMachines] = useState<Machine[]>([])
+  const [machinesLoading, setMachinesLoading] = useState(false)
+  const [showMachineList, setShowMachineList] = useState(false)
+  const [sortBy, setSortBy] = useState<'facility' | 'location' | 'machine'>('facility')
+  const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null)
+  
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
+
+  // Fetch machines for maintenance/service activities
+  useEffect(() => {
+    const fetchMachines = async () => {
+      if (formData.activityType === 'maintenance' || formData.activityType === 'service') {
+        setMachinesLoading(true)
+        try {
+          const response = await apiService.getMachines(1, 1000)
+          // Ensure we always get an array
+          const machinesList = Array.isArray(response.data) 
+            ? response.data 
+            : Array.isArray(response.docs) 
+            ? response.docs 
+            : []
+          
+          setMachines(machinesList)
+          setFilteredMachines(machinesList)
+        } catch (error) {
+          console.error('Failed to fetch machines:', error)
+          // Set empty arrays on error
+          setMachines([])
+          setFilteredMachines([])
+          toast({
+            title: "Warning",
+            description: "Could not load machines list. You can still enter details manually.",
+            variant: "default",
+          })
+        } finally {
+          setMachinesLoading(false)
+        }
+      } else {
+        // Reset machines when switching to other activity types
+        setMachines([])
+        setFilteredMachines([])
+        setSelectedMachine(null)
+      }
+    }
+    fetchMachines()
+  }, [formData.activityType, toast])
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as HTMLElement
+        if (showMachineList && !target.closest('.machine-search-container')) {
+          setShowMachineList(false)
+        }
+      }
+
+      if (showMachineList) {
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }, [showMachineList])
+
+  // Search and sort machines
+  const handleMachineSearch = useCallback((query: string) => {
+    setSearchQuery(query)
+    
+    // Ensure machines is an array before filtering
+     if (!Array.isArray(machines) || machines.length === 0) {
+      setFilteredMachines([])
+      return
+    }
+    
+     // If query is empty, show all machines
+     let filtered = query.trim() === '' 
+       ? machines 
+       : machines.filter(m => {
+           const searchLower = query.toLowerCase()
+           return (
+             (m.name && m.name.toLowerCase().includes(searchLower)) ||
+             (m.model && m.model.toLowerCase().includes(searchLower)) ||
+             (m.facility?.name && m.facility.name.toLowerCase().includes(searchLower)) ||
+             (m.facility?.location && m.facility.location.toLowerCase().includes(searchLower))
+           )
+         })
+
+    // Sort machines
+    filtered = filtered.sort((a, b) => {
+      if (sortBy === 'facility') {
+        return (a.facility?.name || '').localeCompare(b.facility?.name || '')
+      } else if (sortBy === 'location') {
+        return (a.facility?.location || '').localeCompare(b.facility?.location || '')
+      } else {
+        return (a.name || '').localeCompare(b.name || '')
+      }
+    })
+
+    setFilteredMachines(filtered)
+  }, [machines, sortBy])
+
+  // Handle machine selection
+  const handleSelectMachine = (machine: Machine) => {
+    setSelectedMachine(machine)
+    setFormData(prev => ({
+      ...prev,
+      machine: `${machine.name} (${machine.model})`,
+      machineId: machine._id,
+      facility: machine.facility?.name || "",
+      location: machine.facility?.location || ""
+    }))
+    setShowMachineList(false)
+    setSearchQuery("")
+  }
 
   const updateField = (field: keyof PricingFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -111,7 +247,7 @@ export function PricingForm({ onSuccess, onCancel, engineerId }: PricingFormProp
 
       // Submit to API
       const token = localStorage.getItem('accessToken')
-      console.log('Submitting pricing claim:', payload)
+      console.log('Submitting expense details:', payload)
 
       const response = await fetch('https://app.codewithseth.co.ke/api/engineering-pricing', {
         method: 'POST',
@@ -124,23 +260,23 @@ export function PricingForm({ onSuccess, onCancel, engineerId }: PricingFormProp
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
-        throw new Error(errorData.message || `Failed to submit pricing claim (${response.status})`)
+        throw new Error(errorData.message || `Failed to submit expense details (${response.status})`)
       }
 
       const result = await response.json()
-      console.log('Pricing claim submitted successfully:', result)
+      console.log('Expense details submitted successfully:', result)
 
       toast({
-        title: "Expense Claim Submitted",
-        description: "Your pricing claim has been successfully recorded.",
+        title: "Expense Details Submitted",
+        description: "Your expense details have been successfully recorded.",
       })
 
       onSuccess()
     } catch (error: any) {
-      console.error('Pricing submission error:', error)
+      console.error('Expense submission error:', error)
       toast({
-        title: "Failed to Submit Claim",
-        description: error.message || "Could not submit your expense claim. Please try again.",
+        title: "Failed to Submit",
+        description: error.message || "Could not submit your expense details. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -173,7 +309,7 @@ export function PricingForm({ onSuccess, onCancel, engineerId }: PricingFormProp
                 <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
                   <DollarSign className="h-8 w-8 text-white" />
                 </div>
-                <h2 className="text-3xl md:text-4xl font-bold text-white">New Expense Claim</h2>
+                <h2 className="text-3xl md:text-4xl font-bold text-white">Fill Expense Details</h2>
               </div>
               <p className="text-white/90 text-sm md:text-base ml-14">
                 Record your activity expenses and pricing
@@ -250,11 +386,128 @@ export function PricingForm({ onSuccess, onCancel, engineerId }: PricingFormProp
                 <div className="bg-emerald-500 rounded-xl p-2">
                   <Building className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xl">Location & Facility Details</span>
+                <span className="text-xl">
+                  {(formData.activityType === 'maintenance' || formData.activityType === 'service') 
+                    ? 'Select Machine & Location' 
+                    : 'Location & Facility Details'}
+                </span>
               </CardTitle>
-              <CardDescription className="ml-14 text-base">Where did you perform this activity?</CardDescription>
+              <CardDescription className="ml-14 text-base">
+                {(formData.activityType === 'maintenance' || formData.activityType === 'service') 
+                  ? 'Search and select the existing machine' 
+                  : 'Where did you perform this activity?'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
+              {/* Machine Search - Only for Maintenance/Service */}
+              {(formData.activityType === 'maintenance' || formData.activityType === 'service') && (
+                 <div className="space-y-3 pb-6 border-b border-gray-200 machine-search-container relative">
+                  <Label className="text-base font-semibold text-gray-700 flex items-center gap-2">
+                    <Search className="h-4 w-4 text-emerald-500" />
+                    Search Machine *
+                  </Label>
+                  
+                  {/* Sort Options */}
+                  <div className="flex gap-2 mb-4">
+                    {(['facility', 'location', 'machine'] as const).map((sort) => (
+                      <Button
+                        key={sort}
+                        type="button"
+                        variant={sortBy === sort ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => {
+                          setSortBy(sort)
+                          handleMachineSearch(searchQuery)
+                        }}
+                        className={`rounded-lg text-sm ${
+                          sortBy === sort 
+                            ? 'bg-emerald-500 text-white hover:bg-emerald-600' 
+                            : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                        }`}
+                      >
+                        Sort by {sort === 'facility' ? 'Facility' : sort === 'location' ? 'Location' : 'Machine'}
+                      </Button>
+                    ))}
+                  </div>
+
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-4 top-3.5 h-5 w-5 text-gray-400" />
+                    <Input
+                      placeholder="Search machine name, model, facility, location..."
+                      value={searchQuery}
+                      onChange={(e) => handleMachineSearch(e.target.value)}
+                      onFocus={() => setShowMachineList(true)}
+                      className="h-12 pl-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base"
+                    />
+                    {machinesLoading && (
+                      <div className="absolute right-4 top-3.5">
+                        <Loader2 className="h-5 w-5 text-emerald-500 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Machines List Dropdown */}
+                  {showMachineList && (
+                    <div className="absolute z-50 w-full max-w-2xl mt-1 bg-white border-2 border-emerald-200 rounded-xl shadow-xl">
+                      {machinesLoading ? (
+                        <div className="p-6 flex items-center justify-center gap-2 text-emerald-600">
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <span>Loading machines...</span>
+                        </div>
+                      ) : !Array.isArray(filteredMachines) || filteredMachines.length === 0 ? (
+                        <div className="p-6 text-center text-gray-500">
+                          {!Array.isArray(machines) || machines.length === 0 
+                            ? "No machines available" 
+                            : "No machines matching your search"}
+                        </div>
+                      ) : (
+                        <div className="max-h-64 overflow-y-auto">
+                          {filteredMachines.map((machine) => (
+                            <button
+                              key={machine._id}
+                              type="button"
+                              onClick={() => handleSelectMachine(machine)}
+                              className="w-full text-left p-4 hover:bg-emerald-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-gray-900 truncate">{machine.name}</p>
+                                  <p className="text-sm text-gray-600 truncate">{machine.model}</p>
+                                  <div className="flex gap-2 mt-2 flex-wrap">
+                                    <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded">
+                                      🏥 {machine.facility?.name}
+                                    </span>
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                                      📍 {machine.facility?.location}
+                                    </span>
+                                  </div>
+                                  {machine.nextServiceDate && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Next Service: {new Date(machine.nextServiceDate).toLocaleDateString()}
+                                    </p>
+                                  )}
+                                </div>
+                                <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0 mt-1" />
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Selected Machine Info */}
+                  {selectedMachine && (
+                    <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                      <p className="text-sm font-semibold text-emerald-900">✓ Selected: {selectedMachine.name}</p>
+                      <p className="text-xs text-emerald-700 mt-1">{selectedMachine.model} • {selectedMachine.facility?.name}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Location - Always visible */}
               <div className="space-y-2">
                 <Label htmlFor="location" className="text-base font-semibold text-gray-700 flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-emerald-500" />
@@ -262,35 +515,57 @@ export function PricingForm({ onSuccess, onCancel, engineerId }: PricingFormProp
                 </Label>
                 <Input
                   id="location"
-                  placeholder="e.g. Nairobi CBD, Mombasa"
+                  placeholder={
+                    (formData.activityType === 'maintenance' || formData.activityType === 'service')
+                      ? "Auto-filled from selected machine"
+                      : "e.g. Nairobi CBD, Mombasa"
+                  }
                   value={formData.location}
                   onChange={(e) => updateField("location", e.target.value)}
                   required={formData.activityType === 'installation'}
-                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base"
+                  readOnly={(formData.activityType === 'maintenance' || formData.activityType === 'service') && selectedMachine !== null}
+                  className={`h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base ${
+                    ((formData.activityType === 'maintenance' || formData.activityType === 'service') && selectedMachine !== null)
+                      ? 'bg-gray-50 cursor-not-allowed' 
+                      : ''
+                  }`}
                 />
               </div>
 
+              {/* Facility - Always visible */}
               <div className="space-y-2">
                 <Label htmlFor="facility" className="text-base font-semibold text-gray-700">Facility Name</Label>
                 <Input
                   id="facility"
-                  placeholder="e.g. Kenyatta National Hospital"
+                  placeholder={
+                    (formData.activityType === 'maintenance' || formData.activityType === 'service')
+                      ? "Auto-filled from selected machine"
+                      : "e.g. Kenyatta National Hospital"
+                  }
                   value={formData.facility}
                   onChange={(e) => updateField("facility", e.target.value)}
-                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base"
+                  readOnly={(formData.activityType === 'maintenance' || formData.activityType === 'service') && selectedMachine !== null}
+                  className={`h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base ${
+                    ((formData.activityType === 'maintenance' || formData.activityType === 'service') && selectedMachine !== null)
+                      ? 'bg-gray-50 cursor-not-allowed' 
+                      : ''
+                  }`}
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="machine" className="text-base font-semibold text-gray-700">Machine/Equipment</Label>
-                <Input
-                  id="machine"
-                  placeholder="e.g. X-Ray Model 500"
-                  value={formData.machine}
-                  onChange={(e) => updateField("machine", e.target.value)}
-                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base"
-                />
-              </div>
+              {/* Machine - For reference in other activity types */}
+              {!(formData.activityType === 'maintenance' || formData.activityType === 'service') && (
+                <div className="space-y-2">
+                  <Label htmlFor="machine" className="text-base font-semibold text-gray-700">Machine/Equipment</Label>
+                  <Input
+                    id="machine"
+                    placeholder="e.g. X-Ray Model 500"
+                    value={formData.machine}
+                    onChange={(e) => updateField("machine", e.target.value)}
+                    className="h-12 rounded-xl border-2 border-gray-200 focus:border-emerald-500 transition-all text-base"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -406,12 +681,12 @@ export function PricingForm({ onSuccess, onCancel, engineerId }: PricingFormProp
               {isSubmitting ? (
                 <div className="flex items-center gap-2">
                   <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Submitting Claim...
+                  Submitting...
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5" />
-                  Submit Expense Claim
+                  Submit Expense Details
                 </div>
               )}
             </Button>

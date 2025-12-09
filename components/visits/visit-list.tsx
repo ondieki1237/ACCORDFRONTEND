@@ -5,7 +5,8 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, WifiOff, Download, Edit2, Folder, ChevronDown, ChevronRight, Clock } from "lucide-react"
+import { Eye, WifiOff, Download, Folder, ChevronDown, ChevronRight, Clock, Trash } from "lucide-react"
+import * as XLSX from "xlsx"
 import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { authService } from "@/lib/auth"
@@ -151,64 +152,55 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
   const sortedWeeks = Object.keys(groupedData).sort((a, b) => b.localeCompare(a))
 
 
-  // Helper: convert visits array to XML string
-  function visitsToXML(visits: Visit[]) {
-    const escape = (str: string) => typeof str === 'string' ? str.replace(/[<>&'\"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '\'': '&apos;', '"': '&quot;' }[c] || c)) : str
-    function toXML(key: string, value: any, indent = '    '): string {
-      if (value == null) return ''
-      if (Array.isArray(value)) {
-        return value.map(v => toXML(key.slice(0, -1), v, indent)).join('')
-      } else if (typeof value === 'object') {
-        let inner = ''
-        for (const k in value) {
-          if (Object.prototype.hasOwnProperty.call(value, k)) {
-            inner += toXML(k, value[k], indent + '  ')
-          }
-        }
-        return `\n${indent}<${key}>${inner ? '\n' + inner + indent : ''}</${key}>\n`
-      } else {
-        return `\n${indent}<${key}>${escape(value)}</${key}>`
-      }
-    }
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<visits>` +
-      visits.map(v => {
-        let xml = `\n  <visit>`
-        const vAny = v as any;
+  // Helper: export visits array to XLSX and trigger download
+  function visitsToExcel(visits: Visit[], filename: string) {
+    try {
+      // Prepare flat rows - stringify nested objects
+      const rows = visits.map((v) => {
+        const vAny = v as any
+        const flat: Record<string, any> = {}
         for (const k in vAny) {
-          if (Object.prototype.hasOwnProperty.call(vAny, k)) {
-            xml += toXML(k, vAny[k], '    ')
+          if (!Object.prototype.hasOwnProperty.call(vAny, k)) continue
+          const val = vAny[k]
+          if (val == null) {
+            flat[k] = ''
+          } else if (typeof val === 'object') {
+            // For common nested client object, flatten client.name
+            if (k === 'client' && typeof val.name === 'string') {
+              flat['client_name'] = val.name
+            } else {
+              try {
+                flat[k] = JSON.stringify(val)
+              } catch (e) {
+                flat[k] = String(val)
+              }
+            }
+          } else {
+            flat[k] = val
           }
         }
-        xml += `\n  </visit>`
-        return xml
-      }).join('') +
-      `\n</visits>`
+        return flat
+      })
+
+      const ws = XLSX.utils.json_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Visits')
+      // writeFile will prompt download in browser
+      XLSX.writeFile(wb, filename)
+    } catch (err) {
+      console.error('Failed to export XLSX', err)
+      toast({ title: 'Export failed', description: 'Could not generate Excel file.' })
+    }
   }
 
   function handleDownloadFolder(visits: Visit[], filename: string) {
-    const xml = visitsToXML(visits)
-    const blob = new Blob([xml], { type: "application/xml" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    // Ensure .xlsx extension
+    const fname = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`
+    visitsToExcel(visits, fname)
   }
 
   function handleDownloadAll() {
-    const xml = visitsToXML(visits)
-    const blob = new Blob([xml], { type: "application/xml" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `all-visits.xml`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    handleDownloadFolder(visits, `all-visits.xlsx`)
   }
 
   function handleEditFolder(label: string) {
@@ -292,12 +284,9 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
                       {isWeekOpen ? <ChevronDown className="h-4 w-4 text-gray-400" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
                       <Badge variant="secondary" className="ml-2 text-xs">{weekData.visits.length} visits</Badge>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="rounded-xl flex items-center gap-1" onClick={e => { e.stopPropagation(); handleDownloadFolder(weekData.visits, `visits-week-${weekKey}.xml`) }}>
+                      <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="rounded-xl flex items-center gap-1" onClick={e => { e.stopPropagation(); handleDownloadFolder(weekData.visits, `visits-week-${weekKey}.xlsx`) }}>
                         <Download className="h-4 w-4" /> Week
-                      </Button>
-                      <Button size="sm" variant="outline" className="rounded-xl flex items-center gap-1" onClick={e => { e.stopPropagation(); handleEditFolder(`week of ${formatWeekRange(weekKey)}`) }}>
-                        <Edit2 className="h-4 w-4" /> Edit
                       </Button>
                     </div>
                   </div>
@@ -322,7 +311,7 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
                                 <Badge variant="outline" className="ml-2 text-[10px] h-5">{dayVisits.length}</Badge>
                               </div>
                               <div className="flex gap-2">
-                                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs rounded-lg flex items-center gap-1" onClick={e => { e.stopPropagation(); handleDownloadFolder(dayVisits, `visits-${dayKey}.xml`) }}>
+                                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs rounded-lg flex items-center gap-1" onClick={e => { e.stopPropagation(); handleDownloadFolder(dayVisits, `visits-${dayKey}.xlsx`) }}>
                                   <Download className="h-3 w-3" /> Day
                                 </Button>
                               </div>
@@ -361,16 +350,38 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
                                             )}
                                           </div>
                                         </div>
-                                        {/* Right: View Button */}
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          onClick={() => onViewVisit(visit)}
-                                          className="rounded-lg h-8 px-3 flex items-center gap-1 text-[#00aeef] hover:bg-[#00aeef]/10 transition"
-                                        >
-                                          <Eye className="h-4 w-4" />
-                                          View
-                                        </Button>
+                                        {/* Right: View + Delete Buttons */}
+                                        <div className="flex items-center gap-2">
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => onViewVisit(visit)}
+                                            className="rounded-lg h-8 px-3 flex items-center gap-1 text-[#00aeef] hover:bg-[#00aeef]/10 transition"
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                            View
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={async (e) => {
+                                              e.stopPropagation()
+                                              if (!confirm('Delete this visit? This action cannot be undone.')) return
+                                              try {
+                                                await apiService.deleteVisit(visit._id)
+                                                setVisits(prev => prev.filter(v => v._id !== visit._id))
+                                                toast({ title: 'Visit deleted', description: 'Visit removed successfully.' })
+                                              } catch (err) {
+                                                console.error('Delete failed', err)
+                                                toast({ title: 'Delete failed', description: 'Could not delete visit.' })
+                                              }
+                                            }}
+                                            className="rounded-lg h-8 px-3 flex items-center gap-1 text-red-600"
+                                          >
+                                            <Trash className="h-4 w-4" />
+                                            Delete
+                                          </Button>
+                                        </div>
                                       </div>
                                     </Card>
                                   )

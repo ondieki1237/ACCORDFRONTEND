@@ -85,7 +85,7 @@ export function PricingManagement({ engineerId, isAdmin = false }: PricingManage
                 <h2 className="text-3xl md:text-4xl font-bold text-white">My Expenses</h2>
               </div>
               <p className="text-white/90 text-sm md:text-base ml-14">
-                Track and manage your activity expense claims
+                Track and manage your activity expenses
               </p>
             </div>
             <Button
@@ -93,7 +93,7 @@ export function PricingManagement({ engineerId, isAdmin = false }: PricingManage
               className="h-14 px-8 text-lg font-semibold bg-white text-[#00aeef] hover:bg-white/90 rounded-2xl shadow-xl transition-all duration-300 hover:scale-[1.02]"
             >
               <Plus className="h-5 w-5 mr-2" />
-              New Claim
+              New Expense
             </Button>
           </div>
         </div>
