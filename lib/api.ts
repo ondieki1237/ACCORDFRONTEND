@@ -507,6 +507,12 @@ class ApiService {
     })
   }
 
+  async deleteReport(reportId: string): Promise<void> {
+    return this.makeRequest(`/sales/${reportId}`, {
+      method: "DELETE",
+    })
+  }
+
   async updateVisit(visitId: string, visitData: Partial<Visit>): Promise<Visit> {
     return this.makeRequest(`/visits/${visitId}`, {
       method: "PUT",

@@ -363,7 +363,7 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
                                           </Button>
                                           <Button
                                             size="sm"
-                                            variant="destructive"
+                                            variant="outline"
                                             onClick={async (e) => {
                                               e.stopPropagation()
                                               if (!confirm('Delete this visit? This action cannot be undone.')) return
@@ -376,7 +376,7 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
                                                 toast({ title: 'Delete failed', description: 'Could not delete visit.' })
                                               }
                                             }}
-                                            className="rounded-lg h-8 px-3 flex items-center gap-1 text-red-600"
+                                            className="rounded-lg h-8 px-3 flex items-center gap-1 text-red-600 hover:bg-red-50 border-red-300 hover:border-red-400 transition"
                                           >
                                             <Trash className="h-4 w-4" />
                                             Delete

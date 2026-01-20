@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Calendar, Clock, CheckCircle, ArrowLeft, Download, Eye } from "lucide-react";
+import { FileText, Calendar, Clock, CheckCircle, ArrowLeft, Download, Eye, Trash } from "lucide-react";
 import { authService } from "@/lib/auth";
+import { apiService } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 
 interface Report {
@@ -65,6 +66,42 @@ export default function ReportsPage() {
             setReports([]);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDeleteReport = async (reportId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        if (!confirm('Delete this report? This action cannot be undone.')) return;
+
+        try {
+            await apiService.deleteReport(reportId);
+            setReports(prev => prev.filter(r => r._id !== reportId));
+            toast({
+                title: "Report deleted",
+                description: "Report removed successfully.",
+            });
+        } catch (err) {
+            console.error('Delete failed', err);
+            toast({
+                title: "Delete failed",
+                description: "Could not delete report. Please try again.",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleDownloadReport = async (report: Report, e: React.MouseEvent) => {
+        e.stopPropagation();
+        
+        if (report.pdfUrl) {
+            window.open(report.pdfUrl, "_blank");
+        } else {
+            toast({
+                title: "No PDF available",
+                description: "This report doesn't have a downloadable PDF.",
+                variant: "destructive",
+            });
         }
     };
 
@@ -264,14 +301,35 @@ export default function ReportsPage() {
                                                 )}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-2">
                                             {getStatusBadge(report.status)}
+                                            {report.pdfUrl && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="text-green-600 hover:bg-green-50"
+                                                    onClick={(e) => handleDownloadReport(report, e)}
+                                                    title="Download PDF"
+                                                >
+                                                    <Download className="h-5 w-5" />
+                                                </Button>
+                                            )}
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 className="text-[#00aeef] hover:bg-[#00aeef]/10"
+                                                title="View Details"
                                             >
                                                 <Eye className="h-5 w-5" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-red-600 hover:bg-red-50"
+                                                onClick={(e) => handleDeleteReport(report._id, e)}
+                                                title="Delete Report"
+                                            >
+                                                <Trash className="h-5 w-5" />
                                             </Button>
                                         </div>
                                     </div>

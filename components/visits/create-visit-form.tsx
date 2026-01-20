@@ -16,6 +16,7 @@ import facilitiesData from "../facilities.json"
 interface CreateVisitFormProps {
   onSuccess: () => void
   onCancel: () => void
+  initialData?: any
 }
 
 interface Contact {
@@ -38,11 +39,11 @@ interface VisitFormData {
   location: string
   visitPurpose: string
   visitOutcome: string
-  visitOutcome: string
   contacts: Contact[]
   productsOfInterest: ProductInterest[]
   isFollowUpRequired: boolean
   notes: string
+  followUpOf?: string
 }
 
 const LOCAL_KEY = "pendingVisits"
@@ -58,7 +59,7 @@ async function setPendingVisits(visits: any[]) {
   await Preferences.set({ key: LOCAL_KEY, value: JSON.stringify(visits) })
 }
 
-export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
+export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisitFormProps) {
   // Register a navigation block while this form is active so users cannot exit
   // using hardware back or swipe navigation. Only allow exit via Record Visit or Cancel.
   useEffect(() => {
@@ -80,12 +81,11 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
     location: "",
     visitPurpose: "demo",
     visitOutcome: "successful",
-    visitPurpose: "demo",
-    visitOutcome: "successful",
     contacts: [{ name: "", role: "doctor", phone: "", email: "" }],
     productsOfInterest: [{ name: "", notes: "" }],
     isFollowUpRequired: false,
     notes: "",
+    followUpOf: "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
@@ -139,6 +139,28 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
   useEffect(() => {
     setFacilityQuery(formData.clientName)
   }, [formData.clientName])
+
+  // Populate form if initialData is provided (editing mode)
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        date: initialData.date ? new Date(initialData.date).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+        clientName: initialData.client?.name || "",
+        clientType: initialData.client?.type || "hospital",
+        hospitalLevel: initialData.client?.level || "5",
+        location: initialData.client?.location || "",
+        visitPurpose: initialData.visitPurpose || "demo",
+        visitOutcome: initialData.visitOutcome || "successful",
+        contacts: initialData.contacts?.length > 0 ? initialData.contacts : [{ name: "", role: "doctor", phone: "", email: "" }],
+        productsOfInterest: initialData.productsOfInterest?.length > 0
+          ? initialData.productsOfInterest
+          : (initialData.requestedEquipment?.length > 0 ? initialData.requestedEquipment : [{ name: "", notes: "" }]),
+        isFollowUpRequired: initialData.isFollowUpRequired || false,
+        notes: initialData.notes || "",
+        followUpOf: initialData.followUpOf || "",
+      })
+    }
+  }, [initialData])
 
   const fetchFacilities = useCallback(async (query: string) => {
     if (!query || query.trim().length === 0) {
@@ -268,12 +290,14 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
     e.preventDefault()
     setIsSubmitting(true)
 
+    let visitData: any = null
+
     try {
       // Create date object treating the input as local time (no Z suffix)
       // Defaulting time to 09:00 as per user request to remove time input
       const dateTime = new Date(`${formData.date}T09:00:00`).toISOString()
 
-      const visitData: any = {
+      visitData = {
         date: dateTime,
         startTime: dateTime,
         client: {
@@ -285,28 +309,50 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
         visitPurpose: formData.visitPurpose,
         visitOutcome: formData.visitOutcome,
         notes: formData.notes,
+        isFollowUpRequired: formData.isFollowUpRequired,
       }
 
-      // Filter out empty contacts (must have at least a name)
-      const validContacts = formData.contacts.filter(c => c.name.trim() !== '')
+      if (formData.followUpOf) visitData.followUpOf = formData.followUpOf;
+
+      // Filter and format contacts
+      const validContacts = formData.contacts
+        .filter(c => c.name.trim() !== '')
+        .map(c => ({
+          name: c.name.trim(),
+          role: c.role || 'other',
+          phone: c.phone?.trim() || undefined,
+          email: c.email?.trim() || undefined,
+        }));
 
       if (validContacts.length > 0) {
-        visitData.contacts = validContacts
+        visitData.contacts = validContacts;
       }
 
-      // Filter out empty products
+      // Filter and format products
       const validProducts = formData.productsOfInterest.filter(p => p.name.trim() !== '')
       if (validProducts.length > 0) {
-        visitData.productsOfInterest = validProducts
+        visitData.productsOfInterest = validProducts;
+        // Also send as requestedEquipment for compatibility
+        visitData.requestedEquipment = validProducts;
       }
+
+      // Special field for visibility in list if needed
+      visitData.revisitRequired = formData.isFollowUpRequired;
 
       // Use production API
       const token = localStorage.getItem('accessToken');
-      console.log('Sending visit data:', JSON.stringify(visitData, null, 2));
-      console.log('Using token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+      const isEditing = !!(initialData?._id || initialData?.id);
+      const targetId = initialData?._id || initialData?.id;
 
-      const response = await fetch('https://app.codewithseth.co.ke/api/visits', {
-        method: 'POST',
+      console.log(`${isEditing ? 'Updating' : 'Creating'} visit:`, JSON.stringify(visitData, null, 2));
+      console.log('Target URL ID:', targetId);
+
+      const url = isEditing
+        ? `https://app.codewithseth.co.ke/api/visits/${targetId}`
+        : 'https://app.codewithseth.co.ke/api/visits';
+
+      const response = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -319,15 +365,17 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
         console.error('Backend error response:', errorData);
-        throw new Error(errorData.message || `Failed to create visit (${response.status})`);
+        throw new Error(errorData.message || `Failed to ${isEditing ? 'update' : 'create'} visit (${response.status})`);
       }
 
       const result = await response.json();
 
       // Successfully saved online
       toast({
-        title: "Visit Created",
-        description: "Your client visit has been successfully saved to the database.",
+        title: isEditing ? "Visit Updated" : "Visit Created",
+        description: isEditing
+          ? "Your visit details have been successfully updated."
+          : "Your client visit has been successfully saved to the database.",
       })
       // Clear draft
       await Preferences.remove({ key: DRAFT_KEY })
@@ -661,7 +709,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
           </Card>
 
           {/* Visit Outcome and Follow-Up Required */}
-          <Card 
+          <Card
             className="rounded-3xl bg-white border-0 overflow-hidden"
             style={{ boxShadow: "12px 12px 24px #d1d9e6, -12px -12px 24px #ffffff" }}
           >
@@ -781,6 +829,7 @@ export function CreateVisitForm({ onSuccess, onCancel }: CreateVisitFormProps) {
                             <SelectItem value="admin"> Administrator</SelectItem>
                             <SelectItem value="procurement"> Procurement</SelectItem>
                             <SelectItem value="it_manager"> IT Manager</SelectItem>
+                            <SelectItem value="lab_hod">🔬 Lab HOD</SelectItem>
                             <SelectItem value="ceo"> CEO</SelectItem>
                             <SelectItem value="other">📋 Other</SelectItem>
                           </SelectContent>

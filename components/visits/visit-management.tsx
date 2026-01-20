@@ -7,6 +7,7 @@ import { VisitDetail } from "./visit-detail"
 import EngineerVisitForm from "@/components/visits/engineer/engineervisitform"
 import { EngineeringServicesList } from "./engineering-services-list"
 import { EngineeringServiceDetail } from "./engineering-service-detail"
+import { apiService } from "@/lib/api"
 
 interface Visit {
   id: string
@@ -45,7 +46,7 @@ interface EngineeringService {
   updatedAt: string
 }
 
-type ViewMode = "list" | "create" | "detail" | "engineer" | "engineering-services" | "engineering-service-detail"
+type ViewMode = "list" | "create" | "detail" | "engineer" | "engineering-services" | "engineering-service-detail" | "edit"
 
 export function VisitManagement() {
   const [viewMode, setViewMode] = useState<ViewMode>("list")
@@ -63,6 +64,23 @@ export function VisitManagement() {
   const handleViewVisit = (visit: any) => {
     setSelectedVisit(visit)
     setViewMode("detail")
+  }
+
+  const handleEditVisit = (visit: any) => {
+    setSelectedVisit(visit)
+    setViewMode("edit")
+  }
+
+  const handleDeleteVisit = async (visitId: string) => {
+    try {
+      await apiService.deleteVisit(visitId)
+      setViewMode("list")
+      setSelectedVisit(null)
+    } catch (err) {
+      console.error("Failed to delete visit in management:", err)
+      // The error handling will likely be in the component call, 
+      // but we ensure we go back to list on success.
+    }
   }
 
   const handleViewEngineeringServices = () => {
@@ -105,10 +123,30 @@ export function VisitManagement() {
       return <EngineerVisitForm onSuccess={handleEngineerVisitCreated} onCancel={handleBackToList} />
     case "detail":
       return selectedVisit ? (
-        <VisitDetail visit={selectedVisit} onBack={handleBackToList} />
+        <VisitDetail
+          visit={selectedVisit}
+          onBack={handleBackToList}
+          onEdit={() => handleEditVisit(selectedVisit)}
+          onDelete={() => handleDeleteVisit(selectedVisit._id || selectedVisit.id)}
+        />
       ) : (
-        <VisitList 
-          onCreateVisit={handleCreateVisit} 
+        <VisitList
+          onCreateVisit={handleCreateVisit}
+          onCreateEngineerVisit={handleCreateEngineerVisit}
+          onViewVisit={handleViewVisit}
+          onViewEngineeringServices={handleViewEngineeringServices}
+        />
+      )
+    case "edit":
+      return selectedVisit ? (
+        <CreateVisitForm
+          initialData={selectedVisit}
+          onSuccess={handleVisitCreated}
+          onCancel={() => setViewMode("detail")}
+        />
+      ) : (
+        <VisitList
+          onCreateVisit={handleCreateVisit}
           onCreateEngineerVisit={handleCreateEngineerVisit}
           onViewVisit={handleViewVisit}
           onViewEngineeringServices={handleViewEngineeringServices}
@@ -118,8 +156,8 @@ export function VisitManagement() {
       return <EngineeringServicesList onViewService={handleViewService} />
     case "engineering-service-detail":
       return selectedService ? (
-        <EngineeringServiceDetail 
-          service={selectedService} 
+        <EngineeringServiceDetail
+          service={selectedService}
           onBack={handleBackToServices}
           onUpdate={handleServiceUpdated}
         />
@@ -128,8 +166,8 @@ export function VisitManagement() {
       )
     default:
       return (
-        <VisitList 
-          onCreateVisit={handleCreateVisit} 
+        <VisitList
+          onCreateVisit={handleCreateVisit}
           onCreateEngineerVisit={handleCreateEngineerVisit}
           onViewVisit={handleViewVisit}
           onViewEngineeringServices={handleViewEngineeringServices}

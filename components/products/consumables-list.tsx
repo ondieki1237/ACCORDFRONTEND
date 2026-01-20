@@ -20,11 +20,12 @@ interface Consumable {
   lastUpdated?: string
 }
 
-const API_BASE = "http://localhost:4500/api"
+const API_BASE = "https://app.codewithseth.co.ke/api"
 
 export function ConsumablesList() {
   const [consumables, setConsumables] = useState<Consumable[]>([])
   const [filteredConsumables, setFilteredConsumables] = useState<Consumable[]>([])
+  const [displayedConsumables, setDisplayedConsumables] = useState<Consumable[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -32,6 +33,7 @@ export function ConsumablesList() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("name")
+  const [visibleCount, setVisibleCount] = useState(20)
   const { toast } = useToast()
 
   // Monitor online/offline status
@@ -71,6 +73,16 @@ export function ConsumablesList() {
   useEffect(() => {
     filterAndSort()
   }, [consumables, searchQuery, selectedCategory, sortBy])
+
+  // Update displayed items when filteredConsumables or visibleCount changes
+  useEffect(() => {
+    setDisplayedConsumables(filteredConsumables.slice(0, visibleCount))
+  }, [filteredConsumables, visibleCount])
+
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(20)
+  }, [searchQuery, selectedCategory, sortBy])
 
   const fetchConsumables = async () => {
     try {
@@ -176,6 +188,12 @@ export function ConsumablesList() {
     setSelectedCategory("all")
     setSortBy("name")
   }
+
+  const handleLoadMore = () => {
+    setVisibleCount(prev => prev + 10)
+  }
+
+  const hasMore = visibleCount < filteredConsumables.length
 
   if (isLoading && consumables.length === 0) {
     return (
@@ -283,7 +301,8 @@ export function ConsumablesList() {
           {/* Results Count */}
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span>
-              Showing {filteredConsumables.length} of {consumables.length} items
+              Showing {displayedConsumables.length} of {filteredConsumables.length} items
+              {filteredConsumables.length !== consumables.length && ` (${consumables.length} total)`}
             </span>
             {!isOffline && (
               <div className="flex items-center gap-1 text-green-600">
@@ -311,8 +330,9 @@ export function ConsumablesList() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {filteredConsumables.map((consumable) => (
+        <div className="space-y-4">
+          <div className="space-y-3">
+          {displayedConsumables.map((consumable) => (
             <Card
               key={consumable._id}
               className="bg-white rounded-2xl border-0 shadow-md hover:shadow-xl transition-all duration-300"
@@ -378,6 +398,24 @@ export function ConsumablesList() {
               </CardContent>
             </Card>
           ))}
+          </div>
+
+          {/* Load More Button */}
+          {filteredConsumables.length > 0 && (
+            <div className="flex justify-center pt-4">
+              <Button
+                onClick={handleLoadMore}
+                disabled={!hasMore}
+                className={`rounded-xl px-8 py-3 font-semibold transition-all duration-300 ${
+                  hasMore
+                    ? "bg-gradient-to-r from-[#00aeef] to-[#0096d6] hover:from-[#0096d6] hover:to-[#00aeef] text-white shadow-lg hover:scale-105"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                {hasMore ? `Load More (${filteredConsumables.length - visibleCount} remaining)` : "All items loaded"}
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

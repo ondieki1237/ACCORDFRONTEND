@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building, Users, Clock, Calendar, ArrowLeft, FileText, Phone, Mail, Plus, AlertCircle } from "lucide-react"
+import { Building, Users, Clock, Calendar, ArrowLeft, FileText, Phone, Mail, Plus, AlertCircle, Edit, Trash } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { FollowUpVisitForm } from "./followup-visit-form"
 
@@ -29,6 +29,8 @@ interface Visit {
 interface VisitDetailProps {
   visit: Visit
   onBack: () => void
+  onEdit?: () => void
+  onDelete?: () => void
 }
 
 interface FollowUp {
@@ -38,7 +40,7 @@ interface FollowUp {
   priority: "low" | "medium" | "high"
 }
 
-export function VisitDetail({ visit, onBack }: VisitDetailProps) {
+export function VisitDetail({ visit, onBack, onEdit, onDelete }: VisitDetailProps) {
   const [showFollowUpForm, setShowFollowUpForm] = useState(false)
   const { toast } = useToast()
 
@@ -115,6 +117,30 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
             <Badge className={`${getStatusColor(status)} rounded-full px-3 py-1 shadow-sm`}>{status}</Badge>
           </div>
           <p className="text-muted-foreground">Visit details and information</p>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onEdit}
+            className="rounded-xl shadow-[5px_5px_10px_#d1d9e6,-5px_-5px_10px_#ffffff] hover:shadow-inner flex items-center gap-2"
+          >
+            <Edit className="h-4 w-4" />
+            <span className="hidden sm:inline">Edit</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (confirm("Are you sure you want to delete this visit? This action cannot be undone.")) {
+                onDelete?.()
+              }
+            }}
+            className="rounded-xl shadow-[5px_5px_10px_#d1d9e6,-5px_-5px_10px_#ffffff] hover:shadow-inner flex items-center gap-2 text-red-600 hover:text-red-700"
+          >
+            <Trash className="h-4 w-4" />
+            <span className="hidden sm:inline">Delete</span>
+          </Button>
         </div>
       </div>
 
@@ -227,6 +253,24 @@ export function VisitDetail({ visit, onBack }: VisitDetailProps) {
           </CardContent>
         </Card>
       )}
+
+      <div className="flex flex-col gap-4 pt-4 pb-10">
+        <Button
+          onClick={onEdit}
+          className="w-full rounded-2xl h-14 bg-[#00aeef] hover:bg-[#009bd1] text-white shadow-[8px_8px_16px_#d1d9e6,-8px_-8px_16px_#ffffff] flex items-center justify-center gap-2 text-lg font-semibold transition-all active:scale-[0.98]"
+        >
+          <Edit className="h-5 w-5" />
+          Edit Visit
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setShowFollowUpForm(true)}
+          className="w-full rounded-2xl h-14 border-2 border-[#00aeef] text-[#00aeef] hover:bg-[#00aeef]/5 bg-white shadow-[8px_8px_16px_#d1d9e6,-8px_-8px_16px_#ffffff] flex items-center justify-center gap-2 text-lg font-semibold transition-all"
+        >
+          <Plus className="h-5 w-5" />
+          Record Follow-up
+        </Button>
+      </div>
     </div>
   )
 }

@@ -14,6 +14,7 @@ import { PWAInstall } from "@/components/mobile/pwa-install"
 import { OfflineIndicator } from "@/components/mobile/offline-indicator"
 import { MobileOptimizations } from "@/components/mobile/mobile-optimizations"
 import { TouchGestures } from "@/components/mobile/touch-gestures"
+import { SplashScreen } from "@/components/layout/splash-screen"
 import { authService } from "@/lib/auth"
 import { Toaster } from "@/components/ui/toaster"
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,7 @@ export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [showSplash, setShowSplash] = useState(true)
   const [currentPage, setCurrentPage] = useState("dashboard")
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isEngineer, setIsEngineer] = useState(false)
@@ -54,6 +56,15 @@ export default function HomePage() {
     }
 
     checkAuth()
+  }, [])
+
+  // Hide splash screen after animation completes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false)
+    }, 2700) // 2.7s total (animation + fade out)
+
+    return () => clearTimeout(timer)
   }, [])
 
   const handleAuthSuccess = async () => {
@@ -106,6 +117,11 @@ export default function HomePage() {
     if (currentIndex > 0) {
       setCurrentPage(pages[currentIndex - 1])
     }
+  }
+
+  // Show splash screen
+  if (showSplash) {
+    return <SplashScreen />
   }
 
   if (isLoading) {
