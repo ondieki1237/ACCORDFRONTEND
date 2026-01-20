@@ -1,0 +1,24 @@
+/* Design tokens (sRGB) - single source of truth for colors
+   - All values are explicit sRGB hex or rgba
+   - Use these variables in components rather than hard-coded colors
+   - Keep synchronized with app/globals.css and styles/globals.css
+*/
+:root {
+  --color-primary: #00aeef;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #0096d6;
+  --color-secondary-foreground: #ffffff;
+  --color-background: #f1f4f9;
+  --color-surface: #ffffff;
+  --color-text-primary: #0f1724;
+  --color-text-secondary: #6b7280;
+  --color-muted: #f5f7fa;
+  --color-border: #e6ecf5;
+  --color-destructive: #ef4444;
+  --color-ring: rgba(0,174,239,0.5);
+}
+
+/* Usage:
+   import this file in your global CSS (already mirrored in app/globals.css)
+   Reference tokens in components: var(--color-primary)
+*/

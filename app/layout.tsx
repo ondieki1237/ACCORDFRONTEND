@@ -45,6 +45,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Enforce color scheme metadata and hint sRGB usage for UAs */}
+        <meta name="color-scheme" content="light dark" />
+        <meta name="color-gamut" content="sRGB" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="ACCORD" />
