@@ -288,6 +288,13 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    return handleSubmitInternal(false)
+  }
+
+  // Internal submit handler. If keepOpen is true, the form will remain open
+  // and reset client-specific fields so the user can add another visit for
+  // the same date.
+  const handleSubmitInternal = async (keepOpen: boolean) => {
     setIsSubmitting(true)
 
     let visitData: any = null
@@ -380,6 +387,29 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
       // Clear draft
       await Preferences.remove({ key: DRAFT_KEY })
       try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) { }
+
+      if (keepOpen) {
+        // Reset client-specific fields but keep the date so user can add another visit
+        setFormData(prev => ({
+          ...prev,
+          clientName: "",
+          clientType: "hospital",
+          hospitalLevel: "5",
+          location: "",
+          visitPurpose: prev.visitPurpose || 'demo',
+          visitOutcome: prev.visitOutcome || 'successful',
+          contacts: [{ name: "", role: "doctor", phone: "", email: "" }],
+          productsOfInterest: [{ name: "", notes: "" }],
+          isFollowUpRequired: false,
+          notes: "",
+          followUpOf: "",
+        }))
+
+        // Keep pendingVisits and remain on form
+        setTimeout(() => { if (clientNameRef.current) clientNameRef.current.focus() }, 100)
+        return
+      }
+
       onSuccess()
     } catch (error: any) {
       console.error('Visit creation error:', error)
@@ -399,6 +429,25 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
         // Clear draft since it's now "saved" as pending
         await Preferences.remove({ key: DRAFT_KEY })
         try { const { unblockNavigation } = require('@/lib/nav-blocker'); unblockNavigation('create-visit-form') } catch (e) { }
+
+        if (keepOpen) {
+          // If offline and user wanted to add another, keep the form open and reset fields
+          setFormData(prev => ({
+            ...prev,
+            clientName: "",
+            clientType: "hospital",
+            hospitalLevel: "5",
+            location: "",
+            contacts: [{ name: "", role: "doctor", phone: "", email: "" }],
+            productsOfInterest: [{ name: "", notes: "" }],
+            isFollowUpRequired: false,
+            notes: "",
+            followUpOf: "",
+          }))
+          setTimeout(() => { if (clientNameRef.current) clientNameRef.current.focus() }, 100)
+          return
+        }
+
         onSuccess()
         return
       }
@@ -992,6 +1041,14 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
                   Record Visit
                 </div>
               )}
+            </Button>
+            <Button
+              type="button"
+              onClick={async (e) => { e.preventDefault(); await handleSubmitInternal(true) }}
+              className="flex-none h-14 px-6 text-md font-semibold bg-white text-[#00aeef] rounded-2xl shadow-inner border-2 border-[#00aeef]/20 hover:shadow-md transition-all duration-200"
+              disabled={isSubmitting}
+            >
+              Add Another (Same Day)
             </Button>
             <Button
               type="button"
