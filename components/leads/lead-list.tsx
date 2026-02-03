@@ -124,13 +124,6 @@ export function LeadList() {
   // Normalize id field (API may return _id)
   const normalizedLeads = leadsData.map((l: any) => ({ ...l, id: l.id || l._id }))
   setLeads(normalizedLeads)
-      
-      if (leadsData.length === 0) {
-        toast({
-          title: "No leads found",
-          description: "Create your first lead by clicking the + button",
-        })
-      }
     } catch (error) {
       console.error("Failed to load leads:", error)
       setLeads([]) // Set empty array on error

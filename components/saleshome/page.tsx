@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle, Clock, TrendingUp, Upload, FileText, MessageSquare, ShoppingCart, Calendar, Users } from "lucide-react";
+import { CheckCircle, Clock, TrendingUp, Upload, FileText, MessageSquare, ShoppingCart, Calendar, Users, Folder } from "lucide-react";
+import DocumentsViewer from "@/components/documents/DocumentsViewer";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { authService, type User } from "@/lib/auth";
 import { VisitList } from "@/components/visits/visit-list";
 import { Input } from "@/components/ui/input";
@@ -259,7 +261,7 @@ export default function SalesDashboard() {
               </p>
             </div>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-col sm:flex-row items-start gap-3">
             <Button
               onClick={() => router.push("/request")}
               className="w-full sm:w-auto bg-white hover:bg-white/90 text-[#00aeef] font-semibold shadow-lg rounded-xl px-6 py-6 transition-all duration-300 hover:scale-105"
@@ -267,6 +269,17 @@ export default function SalesDashboard() {
               <FileText className="w-5 h-5 mr-2" />
               Request Quotation
             </Button>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button className="w-full sm:w-auto bg-white/90 hover:bg-white text-[#004b60] font-semibold shadow-lg rounded-xl px-6 py-6 transition-all duration-300 hover:scale-105">
+                  <Folder className="w-5 h-5 mr-2" />
+                  Documents
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:w-[480px]">
+                <DocumentsViewer />
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
 

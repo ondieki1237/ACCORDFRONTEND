@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "NEXT_PUBLIC_API_BASE_URL=https://app.codewithseth.co.ke/api NEXT_PUBLIC_UPDATE_URL=https://app.codewithseth.co.ke/app/update next build",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",

@@ -15,6 +15,7 @@ import { OfflineIndicator } from "@/components/mobile/offline-indicator"
 import { MobileOptimizations } from "@/components/mobile/mobile-optimizations"
 import { TouchGestures } from "@/components/mobile/touch-gestures"
 import { SplashScreen } from "@/components/layout/splash-screen"
+import UpdateChecker from "@/components/update/UpdateChecker"
 import { authService } from "@/lib/auth"
 import { Toaster } from "@/components/ui/toaster"
 import { Button } from "@/components/ui/button"
@@ -121,32 +122,43 @@ export default function HomePage() {
 
   // Show splash screen
   if (showSplash) {
-    return <SplashScreen />
+    return (
+      <>
+        <SplashScreen />
+        <UpdateChecker role={isEngineer ? 'engineer' : 'sales'} platform={"android"} />
+      </>
+    )
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#e6ecf5] to-[#d1dbe9]">
-        <div className="text-center space-y-4">
-          <div className="text-4xl font-extrabold text-[#00aeef] tracking-tight">ACCORD</div>
-          <div className="text-gray-500 animate-pulse">Loading your experience...</div>
+      <>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#e6ecf5] to-[#d1dbe9]">
+          <div className="text-center space-y-4">
+            <div className="text-4xl font-extrabold text-[#00aeef] tracking-tight">ACCORD</div>
+            <div className="text-gray-500 animate-pulse">Loading your experience...</div>
+          </div>
         </div>
-      </div>
+        <UpdateChecker role={isEngineer ? 'engineer' : 'sales'} platform={"android"} />
+      </>
     )
   }
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#e6ecf5] to-[#d1dbe9]">
-        <MobileOptimizations />
-        <OfflineIndicator />
-        {showRegister ? (
-          <RegisterForm onSuccess={handleAuthSuccess} onSwitchToLogin={() => setShowRegister(false)} />
-        ) : (
-          <LoginForm onSuccess={handleAuthSuccess} onSwitchToRegister={() => setShowRegister(true)} />
-        )}
-        <Toaster />
-      </div>
+      <>
+        <div className="min-h-screen bg-gradient-to-br from-[#e6ecf5] to-[#d1dbe9]">
+          <MobileOptimizations />
+          <OfflineIndicator />
+          {showRegister ? (
+            <RegisterForm onSuccess={handleAuthSuccess} onSwitchToLogin={() => setShowRegister(false)} />
+          ) : (
+            <LoginForm onSuccess={handleAuthSuccess} onSwitchToRegister={() => setShowRegister(true)} />
+          )}
+          <Toaster />
+        </div>
+        <UpdateChecker role={isEngineer ? 'engineer' : 'sales'} platform={"android"} />
+      </>
     )
   }
 
@@ -202,6 +214,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-br from-[#e6ecf5] to-[#d1dbe9] pb-20 lg:pb-0">
       <MobileOptimizations />
       <OfflineIndicator />
+      <UpdateChecker role={isEngineer ? 'engineer' : 'sales'} platform={"android"} />
       <PWAInstall />
       <TouchGestures onSwipeLeft={handleSwipeLeft} onSwipeRight={handleSwipeRight}>
   <main className="w-full px-4 py-4 lg:container lg:mx-auto lg:p-8">

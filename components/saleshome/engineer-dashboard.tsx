@@ -4,7 +4,9 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Clock, Wrench, AlertCircle } from "lucide-react";
+import { CheckCircle, Clock, Wrench, AlertCircle, Folder } from "lucide-react";
+import DocumentsViewer from "@/components/documents/DocumentsViewer";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { authService, type User } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 
@@ -232,6 +234,16 @@ export default function EngineerDashboard() {
             <Badge className="bg-blue-100 text-blue-800">
               {serviceSummary?.inProgress || 0} in progress
             </Badge>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button className="ml-2 bg-white border hover:bg-white/90 text-blue-800 px-3 py-2 rounded-lg"> 
+                  <Folder className="w-4 h-4 mr-2 inline" /> Documents
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:w-[480px]">
+                <DocumentsViewer />
+              </SheetContent>
+            </Sheet>
           </div>
         </CardContent>
       </Card>
