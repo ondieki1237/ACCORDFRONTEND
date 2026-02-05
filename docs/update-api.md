@@ -1,17 +1,26 @@
 # Internal App Update System - Quick Start
 
-**Status:** ✅ Ready to use
+**Status:** ✅ Ready to use (APK Download & Install)
 
 ---
 
 ## How It Works (Simple)
 
 1. **App starts** → Calls `/api/app-updates/check`
-2. **Server responds** → "Update available? Yes/No"
-3. **If yes** → App gets update data
-4. **App applies update** → Internally (no download needed)
+2. **Server responds** → "Update available? Yes/No" with download URL
+3. **If yes** → App shows update dialog
+4. **User clicks Download** → APK downloads with progress
+5. **APK saved** → Native installer triggered
+6. **User installs** → App updates!
 
-That's it! No APK downloads required.
+---
+
+## APK Location on Backend
+
+The APK file should be served from:
+```
+https://app.codewithseth.co.ke/downloads/app-debug.apk
+```
 
 ---
 
@@ -44,12 +53,10 @@ Or if update available:
   "updateAvailable": true,
   "update": {
     "version": "1.1.0",
-    "releaseNotes": "Bug fixes",
-    "internalUpdate": true,
-    "updateMethod": "internal",
-    "forced": false,
-    "requiresRestart": true,
-    "updateInstructions": "Restart app to apply updates"
+    "releaseNotes": "Bug fixes and improvements",
+    "downloadUrl": "https://app.codewithseth.co.ke/downloads/app-debug.apk",
+    "updateMethod": "apk",
+    "forced": false
   }
 }
 ```
@@ -67,46 +74,71 @@ curl -X POST https://app.codewithseth.co.ke/api/app-updates \
     "version": "1.1.0",
     "platform": "android",
     "targetRoles": ["sales"],
-    "releaseNotes": "Bug fixes",
-    "updateMethod": "internal",
+    "releaseNotes": "Bug fixes and new features",
+    "downloadUrl": "https://app.codewithseth.co.ke/downloads/app-debug.apk",
+    "updateMethod": "apk",
     "forced": false,
-    "isActive": true,
-    "requiresRestart": true
+    "isActive": true
   }'
 ```
 
 ---
 
-## Update Types
+## Update Flow
 
-### Type 1: Simple Restart Required
-```json
-{
-  "updateMethod": "internal",
-  "bundledCode": null,
-  "requiresRestart": true
-}
+### Step 1: User sees update prompt
+- Version number displayed
+- Release notes shown
+- "Download & Install" button
+
+### Step 2: Download with progress
+- Progress bar shows download %
+- File saved to app cache
+
+### Step 3: Install triggered
+- Android package installer opens
+- User confirms installation
+- App restarts with new version
+
+---
+
+## Android Permissions Required
+
+The app needs these permissions in `AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
 ```
-App shows message, user restarts.
 
-### Type 2: With Code Patch
-```json
-{
-  "updateMethod": "internal",
-  "bundledCode": "console.log('Updated!');",
-  "requiresRestart": false
-}
-```
-App applies code immediately.
+The `REQUEST_INSTALL_PACKAGES` permission allows the app to trigger the Android package installer.
 
-### Type 3: Forced Update
+---
+
+## Native Plugin
+
+A custom Capacitor plugin `AppUpdaterPlugin` handles:
+- Checking if install permission is granted
+- Opening permission settings if needed
+- Triggering the APK installer with FileProvider
+
+Location: `android/app/src/main/java/com/ACCORD/business/AppUpdaterPlugin.java`
+
+---
+
+## Forced Updates
+
 ```json
 {
   "forced": true,
-  "requiresRestart": true
+  "version": "2.0.0",
+  "releaseNotes": "Critical security update"
 }
 ```
-User MUST update.
+
+When `forced: true`:
+- User cannot dismiss the dialog
+- Must update to continue using the app
 
 ---
 
@@ -197,21 +229,44 @@ curl -X POST https://app.codewithseth.co.ke/api/app-updates/check \
 
 ## Key Points
 
-✅ App updates happen **internally**  
-✅ No **external downloads**  
-✅ Updates are **controlled by admin**  
-✅ App can **apply patches instantly**  
-✅ Or **require app restart**  
-✅ **Forced updates** can be mandated  
-✅ **Backward compatible** with external URLs if needed  
+✅ App downloads APK from backend server  
+✅ Progress bar shows download status  
+✅ Native installer handles installation  
+✅ **Forced updates** block app usage until installed  
+✅ Version tracking prevents re-prompting after install  
+✅ Works offline-first (checks on app start)  
 
 ---
 
-## Files
+## Files Modified
 
-- `APP_UPDATE_INTERNAL.md` - Complete guide
-- `APP_UPDATE_IMPLEMENTATION.md` - What was implemented
+### Frontend
+- `components/update/UpdateChecker.tsx` - Download & install UI
+- `package.json` - Added `@capacitor/filesystem`
+
+### Android Native
+- `AndroidManifest.xml` - Added `REQUEST_INSTALL_PACKAGES` permission
+- `AppUpdaterPlugin.java` - Native plugin for APK installation
+- `MainActivity.java` - Registers the plugin
+
+### Backend
+- `/downloads/app-debug.apk` - The APK file to serve
+- `/api/app-updates/check` - Returns update info with `downloadUrl`
 
 ---
 
-**Ready to use!** Apps can now update internally without external downloads.
+## Admin API Endpoints
+
+```
+GET  /api/app-updates              List updates
+POST /api/app-updates              Create update
+GET  /api/app-updates/:id          Get update
+PUT  /api/app-updates/:id          Edit update
+DELETE /api/app-updates/:id        Delete update
+```
+
+All require: `authenticate` + `authorize('admin')`
+
+---
+
+**Ready to use!** Build the APK and deploy to test the update flow.

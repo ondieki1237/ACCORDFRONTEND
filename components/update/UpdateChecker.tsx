@@ -2,17 +2,15 @@
 import React, { useEffect, useState } from "react"
 
 type UpdateInfo = {
-  version?: string
-  releaseNotes?: string
-  forced?: boolean
-  internalUpdate?: boolean
-  updateMethod?: "internal" | "external"
-  requiresRestart?: boolean
-  updateInstructions?: string
-  bundledCode?: string | null
+  versionName?: string
+  changelog?: string
+  forceUpdate?: boolean
+  apkUrl?: string
+  versionCode?: number
 }
 
 const CHECK_ENDPOINT = process.env.NEXT_PUBLIC_UPDATE_CHECK_URL || "https://app.codewithseth.co.ke/api/app-updates/check"
+const APK_DOWNLOAD_URL = "https://app.codewithseth.co.ke/downloads/app-debug.apk"
 const APPLIED_VERSION_KEY = "accord_applied_update_version"
 const DISMISSED_VERSION_KEY = "accord_dismissed_update_version"
 
@@ -43,8 +41,9 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
   const [show, setShow] = useState(false)
   const [checking, setChecking] = useState(true)
-  const [applying, setApplying] = useState(false)
-  const [applied, setApplied] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState(0)
+  const [statusMessage, setStatusMessage] = useState("")
 
   useEffect(() => {
     let mounted = true
@@ -76,7 +75,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
           const body = await res.json()
           if (body && body.updateAvailable && body.update) {
             const upd = body.update
-            const updateVersion = upd.version
+            const updateVersion = upd.versionName
 
             // Check if this version was already applied
             const appliedVersion = getAppliedVersion()
@@ -88,21 +87,18 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
 
             // Check if this version was dismissed this session (non-forced only)
             const dismissedVersion = getDismissedVersion()
-            if (!upd.forced && dismissedVersion === updateVersion) {
+            if (!upd.forceUpdate && dismissedVersion === updateVersion) {
               console.log(`⏭️ Update ${updateVersion} dismissed this session, skipping prompt`)
               if (mounted) setChecking(false)
               return
             }
 
             const mapped: UpdateInfo = {
-              version: upd.version,
-              releaseNotes: upd.releaseNotes,
-              forced: !!upd.forced,
-              internalUpdate: upd.internalUpdate ?? true,
-              updateMethod: upd.updateMethod || "internal",
-              requiresRestart: upd.requiresRestart ?? true,
-              updateInstructions: upd.updateInstructions,
-              bundledCode: upd.bundledCode || null,
+              versionName: upd.versionName,
+              changelog: upd.changelog,
+              forceUpdate: !!upd.forceUpdate,
+              apkUrl: upd.apkUrl || APK_DOWNLOAD_URL,
+              versionCode: upd.versionCode,
             }
             if (mounted) {
               setUpdate(mapped)
@@ -126,56 +122,163 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
   if (checking) return null
   if (!update) return null
 
-  async function handleApplyUpdate() {
+  async function handleDownloadAndInstall() {
     if (!update) return
 
-    setApplying(true)
+    setDownloading(true)
+    setDownloadProgress(0)
+    setStatusMessage("Preparing download...")
 
     try {
-      // If there's bundled code to apply immediately
-      if (update.bundledCode) {
-        try {
-          // Apply the code patch (eval in a safe context)
-          const fn = new Function(update.bundledCode)
-          fn()
-          console.log("✅ Update code patch applied successfully")
-        } catch (err) {
-          console.error("Failed to apply code patch:", err)
+      const downloadUrl = update.apkUrl || APK_DOWNLOAD_URL
+      
+      // Check if we're on a Capacitor Android environment
+      const isCapacitor = typeof (window as any).Capacitor !== 'undefined'
+      const isAndroid = isCapacitor && (window as any).Capacitor.getPlatform() === 'android'
+
+      if (!isAndroid) {
+        // Fallback for web/non-Android: just open the download URL
+        setStatusMessage("Opening download link...")
+        window.open(downloadUrl, '_blank')
+        
+        if (update.versionName) {
+          setAppliedVersion(update.versionName)
+        }
+        
+        setTimeout(() => {
+          setShow(false)
+          setDownloading(false)
+        }, 2000)
+        return
+      }
+
+      // Check if we have install permission
+      const Capacitor = (window as any).Capacitor
+      if (Capacitor?.Plugins?.AppUpdater) {
+        const permCheck = await Capacitor.Plugins.AppUpdater.canInstallApk()
+        if (!permCheck.canInstall) {
+          setStatusMessage("Please enable install permission...")
+          await Capacitor.Plugins.AppUpdater.openInstallPermissionSettings()
+          setDownloading(false)
+          return
         }
       }
 
-      // Mark this version as applied BEFORE restarting
-      if (update.version) {
-        setAppliedVersion(update.version)
-        console.log(`📝 Marked version ${update.version} as applied`)
+      // Android: Download APK and trigger install
+      setStatusMessage("Downloading update...")
+      
+      // Use fetch to download with progress tracking
+      const response = await fetch(downloadUrl)
+      
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`)
       }
 
-      // If restart is required
-      if (update.requiresRestart) {
-        setApplied(true)
-        // Give user a moment to see the message, then reload
-        setTimeout(() => {
-          window.location.reload()
-        }, 1500)
-      } else {
-        // Update applied without restart
-        setApplied(true)
-        setTimeout(() => {
-          setShow(false)
-        }, 2000)
+      const contentLength = response.headers.get('content-length')
+      const total = contentLength ? parseInt(contentLength, 10) : 0
+      
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Failed to get response reader')
       }
+
+      const chunks: Uint8Array[] = []
+      let received = 0
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        chunks.push(value)
+        received += value.length
+        
+        if (total > 0) {
+          const progress = Math.round((received / total) * 100)
+          setDownloadProgress(progress)
+          setStatusMessage(`Downloading... ${progress}%`)
+        } else {
+          // No content-length, show bytes downloaded
+          const mb = (received / (1024 * 1024)).toFixed(1)
+          setStatusMessage(`Downloading... ${mb} MB`)
+        }
+      }
+
+      // Combine chunks into single array
+      const apkData = new Uint8Array(received)
+      let position = 0
+      for (const chunk of chunks) {
+        apkData.set(chunk, position)
+        position += chunk.length
+      }
+
+      setStatusMessage("Saving APK file...")
+      setDownloadProgress(100)
+
+      // Convert to base64 for Capacitor Filesystem
+      const base64Data = btoa(
+        apkData.reduce((data, byte) => data + String.fromCharCode(byte), '')
+      )
+
+      // Import Capacitor Filesystem
+      const { Filesystem, Directory } = await import('@capacitor/filesystem')
+      
+      const fileName = `accord-update-${update.versionName || 'latest'}.apk`
+      
+      // Write the APK to cache directory
+      const writeResult = await Filesystem.writeFile({
+        path: fileName,
+        data: base64Data,
+        directory: Directory.Cache,
+      })
+
+      console.log('APK saved to:', writeResult.uri)
+      setStatusMessage("Starting installation...")
+
+      // Trigger APK installation using our native plugin
+      if (Capacitor?.Plugins?.AppUpdater) {
+        const result = await Capacitor.Plugins.AppUpdater.installApk({ path: fileName })
+        
+        if (result.permissionRequired) {
+          setStatusMessage(result.message || "Please grant install permission")
+          setDownloading(false)
+          return
+        }
+
+        if (result.success) {
+          // Mark version as applied
+          if (update.versionName) {
+            setAppliedVersion(update.versionName)
+          }
+          setStatusMessage("Installation started! Please follow the prompts.")
+        }
+      } else {
+        // Fallback: Open the download URL directly in browser
+        setStatusMessage("Opening download in browser...")
+        window.open(downloadUrl, '_blank')
+        
+        if (update.versionName) {
+          setAppliedVersion(update.versionName)
+        }
+      }
+
+      // Close the modal after a delay
+      setTimeout(() => {
+        setDownloading(false)
+        setShow(false)
+      }, 3000)
+
     } catch (err) {
-      console.error("Failed to apply update:", err)
-    } finally {
-      setApplying(false)
+      console.error("Failed to download/install update:", err)
+      setStatusMessage("Download failed. Tap to retry.")
+      setDownloading(false)
     }
   }
 
   function handleDismiss() {
-    if (!update?.forced) {
+    if (!update?.forceUpdate) {
       // Remember dismissed version for this session only
-      if (update?.version) {
-        setDismissedVersion(update.version)
+      if (update?.versionName) {
+        setDismissedVersion(update.versionName)
       }
       setShow(false)
     }
@@ -184,7 +287,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
   return (
     <div aria-hidden={!show} style={{ display: show ? undefined : "none" }}>
       {/* Backdrop for forced updates */}
-      {update.forced && (
+      {update.forceUpdate && (
         <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" />
       )}
       
@@ -193,51 +296,59 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
           {/* Header */}
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-full bg-[#00aeef]/10 flex items-center justify-center">
-              <svg className="w-6 h-6 text-[#00aeef]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              {downloading ? (
+                <svg className="w-6 h-6 text-[#00aeef] animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6 text-[#00aeef]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              )}
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">
-                {applied ? "Update Applied!" : "Update Available"}
+                {downloading ? "Downloading Update" : "Update Available"}
               </h3>
-              {update.version && (
-                <p className="text-sm text-gray-500">Version {update.version}</p>
+              {update.versionName && (
+                <p className="text-sm text-gray-500">Version {update.versionName}</p>
               )}
             </div>
           </div>
 
-          {/* Applied State */}
-          {applied ? (
-            <div className="text-center py-4">
-              <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-green-100 flex items-center justify-center">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+          {/* Downloading State */}
+          {downloading ? (
+            <div className="py-4">
+              {/* Progress Bar */}
+              <div className="mb-3">
+                <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-[#00aeef] to-[#0096d6] transition-all duration-300 ease-out"
+                    style={{ width: `${downloadProgress}%` }}
+                  />
+                </div>
               </div>
-              <p className="text-gray-600">
-                {update.requiresRestart ? "Restarting app..." : "Update applied successfully!"}
-              </p>
+              <p className="text-sm text-gray-600 text-center">{statusMessage}</p>
             </div>
           ) : (
             <>
               {/* Release Notes */}
-              {update.releaseNotes && (
+              {update.changelog && (
                 <div className="mb-4 p-3 bg-gray-50 rounded-xl">
                   <p className="text-xs font-medium text-gray-500 uppercase mb-1">What's New</p>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{update.releaseNotes}</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{update.changelog}</p>
                 </div>
               )}
 
-              {/* Update Instructions */}
-              {update.updateInstructions && (
-                <p className="text-xs text-gray-500 mb-4 text-center">
-                  {update.updateInstructions}
+              {/* APK Install Info */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                <p className="text-sm text-blue-800">
+                  📱 This update will download and install a new version of the app.
                 </p>
-              )}
+              </div>
 
               {/* Forced Update Notice */}
-              {update.forced && (
+              {update.forceUpdate && (
                 <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
                   <p className="text-sm text-amber-800 font-medium">
                     ⚠️ This update is required to continue using the app.
@@ -247,7 +358,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
 
               {/* Actions */}
               <div className="flex gap-3">
-                {!update.forced && (
+                {!update.forceUpdate && (
                   <button
                     onClick={handleDismiss}
                     className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
@@ -256,23 +367,16 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
                   </button>
                 )}
                 <button
-                  onClick={handleApplyUpdate}
-                  disabled={applying}
-                  className={`flex-1 px-4 py-3 text-sm font-medium text-white bg-[#00aeef] rounded-xl hover:bg-[#0096d6] transition-colors disabled:opacity-50 ${update.forced ? 'w-full' : ''}`}
+                  onClick={handleDownloadAndInstall}
+                  disabled={downloading}
+                  className={`flex-1 px-4 py-3 text-sm font-medium text-white bg-[#00aeef] rounded-xl hover:bg-[#0096d6] transition-colors disabled:opacity-50 ${update.forceUpdate ? 'w-full' : ''}`}
                 >
-                  {applying ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Applying...
-                    </span>
-                  ) : update.requiresRestart ? (
-                    "Update & Restart"
-                  ) : (
-                    "Apply Update"
-                  )}
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download & Install
+                  </span>
                 </button>
               </div>
             </>

@@ -512,9 +512,9 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
                 <div className="bg-[#00aeef] rounded-xl p-2">
                   <Clock className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xl">Visit Schedule</span>
+                <span className="text-xl">Visit Record</span>
               </CardTitle>
-              <CardDescription className="ml-14 text-base">When will this visit take place?</CardDescription>
+              <CardDescription className="ml-14 text-base">When did this interaction take place?</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2 pt-6">
               <div className="space-y-2">
@@ -539,6 +539,10 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="demo">🎯 Demo</SelectItem>
+                    <SelectItem value="telesales">📱 Telesales</SelectItem>
+                    <SelectItem value="quotation_followup">📋 Quotation Followup</SelectItem>
+                    <SelectItem value="company_introduction">🏢 Company Introduction</SelectItem>
+                    <SelectItem value="debt_collection">💳 Debt Collection</SelectItem>
                     <SelectItem value="followup">📞 Follow Up</SelectItem>
                     <SelectItem value="installation">🔧 Installation</SelectItem>
                     <SelectItem value="maintenance">🛠️ Maintenance</SelectItem>
@@ -767,9 +771,9 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
                 <div className="bg-purple-500 rounded-xl p-2">
                   <MapPin className="h-6 w-6 text-white" />
                 </div>
-                <span className="text-xl">Visit Outcome & Follow-Up</span>
+                <span className="text-xl">The Outcome</span>
               </CardTitle>
-              <CardDescription className="ml-14 text-base">What is the goal and result of this visit?</CardDescription>
+              <CardDescription className="ml-14 text-base">What was the outcome of this interaction?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               <div className="grid gap-6 md:grid-cols-2">
@@ -818,9 +822,9 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
                     <div className="bg-orange-500 rounded-xl p-2">
                       <Users className="h-6 w-6 text-white" />
                     </div>
-                    <span className="text-xl">People Met</span>
+                    <span className="text-xl">Persons in Contact</span>
                   </CardTitle>
-                  <CardDescription className="ml-14 text-base">Who did you meet with? (At least one required)</CardDescription>
+                  <CardDescription className="ml-14 text-base">Who did you interact with? (At least one required)</CardDescription>
                 </div>
                 <Button
                   type="button"
