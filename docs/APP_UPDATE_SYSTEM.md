@@ -1,229 +1,215 @@
-# ACCORD App Update System
+📦 Over-the-Air (OTA) APK Update Documentation
 
-**Date:** February 5, 2026  
-**Status:** ✅ FULLY ALIGNED - Frontend matches Backend
+Project: Accord App
+Backend: https://app.codewithseth.co.ke
+APK: app-debug.apk
+Framework: Capacitor (Android)
 
----
+1. Overview
 
-## Overview
+This document describes how the Accord mobile application checks for updates and downloads a new APK securely over HTTPS using Capacitor and Android’s native installer.
 
-The ACCORD mobile app checks for updates from the backend server and downloads/installs new APK versions directly within the app.
+⚠️ Important: Android apps cannot self-install APKs. The app must hand off the download to the Android system.
 
----
+2. Update Flow Architecture
+Mobile App
+   │
+   │ POST /api/app-updates/check
+   │
+   ▼
+Backend API
+   │
+   │ Returns update metadata + HTTPS download URL
+   │
+   ▼
+Mobile App
+   │
+   │ Browser.open(downloadUrl)
+   │
+   ▼
+Android Download Manager
+   │
+   ▼
+APK Installer Prompt
 
-## Update Flow
+3. Backend Implementation
+3.1 APK Location
 
-```
-┌─────────────────┐   POST /api/app-updates/check   ┌─────────────────┐
-│   ACCORD App    │ ────────────────────────────────▶│    Backend      │
-│   (Frontend)    │                                  │    Server       │
-└────────┬────────┘                                  └────────┬────────┘
-         │                                                    │
-         │◀─── JSON: updateAvailable, versionName, apkUrl ────│
-         │                                                    │
-    ┌────▼────┐                                               │
-    │ Compare │                                               │
-    │ versions│                                               │
-    └────┬────┘                                               │
-         │                                                    │
-    (if updateAvailable)                                      │
-         │                                                    │
-         │       GET /downloads/app-release.apk              │
-         │───────────────────────────────────────────────────▶│
-         │                                                    │
-         │◀──────────── APK Binary Stream ────────────────────│
-         │                                                    │
-    ┌────▼────┐                                            
-    │ Download│                                            
-    │ & Save  │                                            
-    └────┬────┘                                            
-         │                                                 
-    ┌────▼────┐                                            
-    │ Install │                                            
-    │   APK   │                                            
-    └─────────┘                                            
-```
+The APK must exist in the backend project:
 
----
+/backend
+ ├─ downloads/
+ │   └─ app-debug.apk
+ └─ server.js
 
-## Backend API (Already Implemented)
+3.2 APK Download Endpoint
 
-### Version Check Endpoint
+Route
 
-**Endpoint:** `POST /api/app-updates/check`
+GET /downloads/app-debug.apk
 
-**Request Body:**
-```json
+
+Implementation (Express.js)
+
+import path from 'path';
+
+app.get('/downloads/app-debug.apk', (req, res) => {
+  const apkPath = path.join(process.cwd(), 'downloads', 'app-debug.apk');
+
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.android.package-archive'
+  );
+  res.setHeader(
+    'Content-Disposition',
+    'attachment; filename="app-debug.apk"'
+  );
+  res.setHeader('Accept-Ranges', 'bytes');
+
+  res.sendFile(apkPath);
+});
+
+
+✅ Supports Android range requests
+✅ Works with Download Manager
+✅ HTTPS trusted by Android
+
+3.3 Update Check API
+
+Route
+
+POST /api/app-updates/check
+
+
+Request Body
+
 {
-  "role": "sales",
-  "platform": "android",
-  "currentVersion": "1.1.0"
+  "currentVersion": "1.0.2",
+  "platform": "android"
 }
-```
 
-**Response:**
-```json
+
+Response Example
+
 {
-  "updateAvailable": true,
-  "update": {
-    "versionCode": 120,
-    "versionName": "1.2.0",
-    "apkUrl": "https://app.codewithseth.co.ke/downloads/app-release.apk",
-    "forceUpdate": false,
-    "changelog": "Bug fixes and improvements"
+  "hasUpdate": true,
+  "latestVersion": "1.0.3",
+  "mandatory": false,
+  "downloadUrl": "https://app.codewithseth.co.ke/downloads/app-debug.apk"
+}
+
+
+⚠️ Never return localhost or IP-based URLs
+
+4. Frontend (Capacitor) Implementation
+4.1 Update Check Request
+const response = await fetch(
+  'https://app.codewithseth.co.ke/api/app-updates/check',
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      currentVersion: APP_VERSION,
+      platform: 'android',
+    }),
   }
+);
+
+const updateInfo = await response.json();
+
+4.2 Triggering the APK Download (CRITICAL)
+
+❌ Do NOT use
+
+fetch(downloadUrl);
+axios.get(downloadUrl);
+
+
+Android will refuse to install.
+
+✅ Correct Way (Required)
+import { Browser } from '@capacitor/browser';
+
+async function downloadAndInstall(downloadUrl: string) {
+  await Browser.open({
+    url: downloadUrl,
+  });
 }
-```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `updateAvailable` | boolean | Whether an update is available |
-| `update.versionCode` | number | Numeric version code (e.g., 120) |
-| `update.versionName` | string | Semantic version (e.g., "1.2.0") |
-| `update.apkUrl` | string | Full URL to download the APK |
-| `update.forceUpdate` | boolean | If true, user cannot dismiss update |
-| `update.changelog` | string | Release notes text |
 
-### APK Download Endpoint
+This hands control to:
 
-**Endpoint:** `GET /downloads/app-release.apk`
+Android Browser
 
-**Requirements:**
-- Serve the APK file with proper headers
-- Support `Content-Length` header (required for progress tracking)
-- Content-Type: `application/vnd.android.package-archive`
+Android Download Manager
 
----
+System APK installer
 
-## Frontend Implementation
+4.3 Complete Update Logic
+if (updateInfo.hasUpdate) {
+  await Browser.open({
+    url: updateInfo.downloadUrl,
+  });
+}
 
-### Components
+5. Capacitor Configuration
+capacitor.config.ts
+import { CapacitorConfig } from '@capacitor/cli';
 
-| File | Purpose |
-|------|---------|
-| `components/update/UpdateChecker.tsx` | Main update UI component |
-| `android/.../AppUpdaterPlugin.java` | Native APK installer plugin |
+const config: CapacitorConfig = {
+  appId: 'com.accord.app',
+  appName: 'Accord',
+  webDir: 'dist',
+  server: {
+    androidScheme: 'https'
+  }
+};
 
-### Update Check Trigger
+export default config;
 
-- Runs on app startup (inside `MobileLayout`)
-- Sends POST request with `role`, `platform`, `currentVersion`
-- Shows update dialog if `updateAvailable: true`
+6. Android Configuration
+6.1 Required Permissions
 
-### Field Mapping (Frontend ↔ Backend)
+android/app/src/main/AndroidManifest.xml
 
-| Frontend Uses | Backend Returns | Status |
-|---------------|-----------------|--------|
-| `versionName` | `versionName` | ✅ Aligned |
-| `apkUrl` | `apkUrl` | ✅ Aligned |
-| `changelog` | `changelog` | ✅ Aligned |
-| `forceUpdate` | `forceUpdate` | ✅ Aligned |
-| `versionCode` | `versionCode` | ✅ Aligned |
-
-### Download Process
-
-1. Fetch APK with progress tracking via `ReadableStream`
-2. Save to device cache using `@capacitor/filesystem`
-3. Trigger native Android installer via custom plugin
-
-### Version Tracking
-
-- `localStorage` stores the last applied version (`versionName`)
-- Prevents re-prompting after user installs update
-- `sessionStorage` tracks dismissed versions (non-forced only)
-
----
-
-## Android Native Plugin
-
-### AppUpdaterPlugin.java
-
-Located at: `android/app/src/main/java/com/ACCORD/business/AppUpdaterPlugin.java`
-
-**Methods:**
-| Method | Description |
-|--------|-------------|
-| `installApk(path)` | Triggers Android APK installer |
-| `canInstallApk()` | Checks if app has install permission |
-| `openInstallPermissionSettings()` | Opens Android settings for install permission |
-
-### Required Permissions
-
-```xml
+<uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-```
 
----
+6.2 User Permission
 
-## Release Process
+On Android 8+:
 
-### To Release a New Version:
+User must allow “Install unknown apps”
 
-1. **Build new APK:**
-   ```bash
-   ./build-apk.sh
-   ```
+Android prompts automatically on first install attempt
 
-2. **Upload APK to backend:**
-   ```bash
-   cp android/app/build/outputs/apk/debug/app-debug.apk /path/to/backend/downloads/app-release.apk
-   ```
+7. Testing Checklist
+Backend Test
 
-3. **Update backend version:**
-   - Increment `versionCode` and `versionName` in backend config
-   - Update `changelog` with release notes
+Open in browser:
 
-4. **Users see update:**
-   - On next app launch, update dialog appears
-   - User taps "Download & Install"
-   - APK downloads with progress bar
-   - Android installer opens
+https://app.codewithseth.co.ke/downloads/app-debug.apk
 
----
 
-## Testing
+✔ File downloads
+✔ Installer opens
 
-### Test Update Check:
-```bash
-curl -X POST https://app.codewithseth.co.ke/api/app-updates/check \
-  -H "Content-Type: application/json" \
-  -d '{"role":"sales","platform":"android","currentVersion":"1.0.0"}'
-```
+App Test
 
-### Expected Response:
-```json
-{
-  "updateAvailable": true,
-  "update": {
-    "versionCode": 120,
-    "versionName": "1.2.0",
-    "apkUrl": "https://app.codewithseth.co.ke/downloads/app-release.apk",
-    "forceUpdate": false,
-    "changelog": "Bug fixes and improvements"
-  }
-}
-```
+Open app
 
-### Test APK Download:
-```bash
-curl -I https://app.codewithseth.co.ke/downloads/app-release.apk
-# Should show: Content-Type: application/vnd.android.package-archive
-# Should show: Content-Length: <file size>
-```
+Trigger update check
 
----
+Tap Update
 
-## Summary
+Android download notification appears
 
-| Component | Status |
-|-----------|--------|
-| Backend endpoint | ✅ `/api/app-updates/check` implemented |
-| APK download route | ✅ `/downloads/app-release.apk` works |
-| Frontend UpdateChecker | ✅ Aligned with backend field names |
-| Native APK installer | ✅ AppUpdaterPlugin implemented |
-| Progress tracking | ✅ Uses ReadableStream + Content-Length |
-| Force update support | ✅ `forceUpdate` field supported |
+Installer prompt opens
 
-**Status:** ✅ Fully aligned and ready for production
+8. Common Failure Causes
+Issue	Result
+Using localhost	Network error
+Using fetch()	Silent install failure
+Missing headers	Download stalls
+Invalid SSL	APK rejected
+Wrong MIME type	Installer won’t open
