@@ -1,5 +1,6 @@
 "use client"
-import React, { useEffect, useState } from "react"
+import React, { useEffect, useState, useRef, useCallback } from "react"
+import { createPortal } from "react-dom"
 
 type UpdateInfo = {
   versionName?: string
@@ -10,9 +11,11 @@ type UpdateInfo = {
 }
 
 const CHECK_ENDPOINT = process.env.NEXT_PUBLIC_UPDATE_CHECK_URL || "https://app.codewithseth.co.ke/api/app-updates/check"
-const APK_DOWNLOAD_URL = "https://app.codewithseth.co.ke/downloads/app-debug.apk"
+const APK_DOWNLOAD_URL = "https://app.codewithseth.co.ke/downloads/app-release.apk"
 const APPLIED_VERSION_KEY = "accord_applied_update_version"
 const DISMISSED_VERSION_KEY = "accord_dismissed_update_version"
+const UPDATE_IN_PROGRESS_KEY = "accord_update_in_progress"
+const PENDING_UPDATE_KEY = "accord_pending_update"
 
 // Helper to get/set applied versions
 function getAppliedVersion(): string | null {
@@ -37,16 +40,96 @@ function setDismissedVersion(version: string): void {
   }
 }
 
+function isUpdateInProgress(): boolean {
+  if (typeof window === "undefined") return false
+  return sessionStorage.getItem(UPDATE_IN_PROGRESS_KEY) === "true"
+}
+
+function setUpdateInProgress(inProgress: boolean): void {
+  if (typeof window !== "undefined") {
+    if (inProgress) {
+      sessionStorage.setItem(UPDATE_IN_PROGRESS_KEY, "true")
+    } else {
+      sessionStorage.removeItem(UPDATE_IN_PROGRESS_KEY)
+    }
+  }
+}
+
+// Store/retrieve pending update to survive component remounts
+function getPendingUpdate(): UpdateInfo | null {
+  if (typeof window === "undefined") return null
+  try {
+    const stored = sessionStorage.getItem(PENDING_UPDATE_KEY)
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
+
+function setPendingUpdate(update: UpdateInfo | null): void {
+  if (typeof window !== "undefined") {
+    if (update) {
+      sessionStorage.setItem(PENDING_UPDATE_KEY, JSON.stringify(update))
+    } else {
+      sessionStorage.removeItem(PENDING_UPDATE_KEY)
+    }
+  }
+}
+
+// Global flag to prevent multiple API checks across component instances
+let hasCheckedThisSession = false
+
 export default function UpdateChecker({ role = "sales", platform = "android" }: { role?: string; platform?: string }) {
-  const [update, setUpdate] = useState<UpdateInfo | null>(null)
-  const [show, setShow] = useState(false)
-  const [checking, setChecking] = useState(true)
+  // Initialize state from sessionStorage to survive remounts
+  const [update, setUpdate] = useState<UpdateInfo | null>(() => {
+    if (typeof window === "undefined") return null
+    return getPendingUpdate()
+  })
+  const [show, setShow] = useState(() => {
+    if (typeof window === "undefined") return false
+    return getPendingUpdate() !== null
+  })
+  const [checking, setChecking] = useState(() => {
+    // Don't show checking state if we already have a pending update
+    if (typeof window === "undefined") return true
+    return getPendingUpdate() === null
+  })
   const [downloading, setDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState(0)
   const [statusMessage, setStatusMessage] = useState("")
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+  
+  // Refs to prevent multiple operations
+  const isCheckingRef = useRef(false)
+  const isDownloadingRef = useRef(false)
+  const hasInitializedRef = useRef(false)
 
   useEffect(() => {
+    // If we already have update state from initialization, skip the check
+    if (update && show) {
+      console.log("📦 Update already loaded from session:", update.versionName)
+      setChecking(false)
+      hasInitializedRef.current = true
+      return
+    }
+
+    // Skip if already checked this session via API
+    if (hasCheckedThisSession || isCheckingRef.current || hasInitializedRef.current) {
+      setChecking(false)
+      return
+    }
+
+    // Skip if update is already in progress
+    if (isUpdateInProgress()) {
+      console.log("⏳ Update already in progress, skipping check")
+      setChecking(false)
+      return
+    }
+
     let mounted = true
+    isCheckingRef.current = true
+    hasCheckedThisSession = true
+    hasInitializedRef.current = true
 
     async function getCurrentVersion() {
       if (typeof window === "undefined") return null
@@ -101,6 +184,8 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
               versionCode: upd.versionCode,
             }
             if (mounted) {
+              // Store in sessionStorage to survive remounts
+              setPendingUpdate(mapped)
               setUpdate(mapped)
               setShow(true)
             }
@@ -109,6 +194,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
       } catch (e) {
         console.error("Failed to check for updates:", e)
       } finally {
+        isCheckingRef.current = false
         if (mounted) setChecking(false)
       }
     }
@@ -119,15 +205,29 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
     }
   }, [role, platform])
 
-  if (checking) return null
-  if (!update) return null
+  // Only return null during initial checking if no update is available
+  // Once we have an update, always render the popup
+  if (!update || !show) {
+    return null
+  }
+
+  console.log("🔄 Rendering update popup for:", update.versionName, "show:", show, "downloading:", downloading)
 
   async function handleDownloadAndInstall() {
     if (!update) return
+    
+    // Prevent multiple simultaneous downloads
+    if (isDownloadingRef.current) {
+      console.log("⏳ Download already in progress, ignoring click")
+      return
+    }
 
+    isDownloadingRef.current = true
+    setUpdateInProgress(true)
     setDownloading(true)
     setDownloadProgress(0)
     setStatusMessage("Preparing download...")
+    setDownloadError(null)
 
     try {
       const downloadUrl = update.apkUrl || APK_DOWNLOAD_URL
@@ -160,118 +260,211 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
           setStatusMessage("Please enable install permission...")
           await Capacitor.Plugins.AppUpdater.openInstallPermissionSettings()
           setDownloading(false)
+          isDownloadingRef.current = false
+          setUpdateInProgress(false)
           return
         }
       }
 
-      // Android: Download APK and trigger install
+      // Android: Download APK using Capacitor Filesystem (more reliable than fetch)
       setStatusMessage("Downloading update...")
       
-      // Use fetch to download with progress tracking
-      const response = await fetch(downloadUrl)
-      
-      if (!response.ok) {
-        throw new Error(`Download failed: ${response.status}`)
-      }
-
-      const contentLength = response.headers.get('content-length')
-      const total = contentLength ? parseInt(contentLength, 10) : 0
-      
-      const reader = response.body?.getReader()
-      if (!reader) {
-        throw new Error('Failed to get response reader')
-      }
-
-      const chunks: Uint8Array[] = []
-      let received = 0
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
+      try {
+        // Import Capacitor Filesystem
+        const { Filesystem, Directory } = await import('@capacitor/filesystem')
         
-        chunks.push(value)
-        received += value.length
+        const fileName = `accord-update-${update.versionName || 'latest'}.apk`
         
-        if (total > 0) {
-          const progress = Math.round((received / total) * 100)
-          setDownloadProgress(progress)
-          setStatusMessage(`Downloading... ${progress}%`)
+        // Use Capacitor's downloadFile which handles the download natively
+        // This is more reliable than fetch + ReadableStream in WebView
+        const downloadResult = await Filesystem.downloadFile({
+          url: downloadUrl,
+          path: fileName,
+          directory: Directory.Cache,
+          progress: true,
+        })
+
+        // Listen for progress if available
+        console.log('APK downloaded to:', downloadResult.path)
+        setDownloadProgress(100)
+        setStatusMessage("Starting installation...")
+
+        // Trigger APK installation using our native plugin
+        if (Capacitor?.Plugins?.AppUpdater) {
+          const result = await Capacitor.Plugins.AppUpdater.installApk({ path: fileName })
+          
+          if (result.permissionRequired) {
+            setStatusMessage(result.message || "Please grant install permission")
+            setDownloading(false)
+            isDownloadingRef.current = false
+            setUpdateInProgress(false)
+            return
+          }
+
+          if (result.success) {
+            // Mark version as applied
+            if (update.versionName) {
+              setAppliedVersion(update.versionName)
+              setPendingUpdate(null)
+            }
+            setStatusMessage("Installation started! Please follow the prompts.")
+          }
         } else {
-          // No content-length, show bytes downloaded
-          const mb = (received / (1024 * 1024)).toFixed(1)
-          setStatusMessage(`Downloading... ${mb} MB`)
-        }
-      }
-
-      // Combine chunks into single array
-      const apkData = new Uint8Array(received)
-      let position = 0
-      for (const chunk of chunks) {
-        apkData.set(chunk, position)
-        position += chunk.length
-      }
-
-      setStatusMessage("Saving APK file...")
-      setDownloadProgress(100)
-
-      // Convert to base64 for Capacitor Filesystem
-      const base64Data = btoa(
-        apkData.reduce((data, byte) => data + String.fromCharCode(byte), '')
-      )
-
-      // Import Capacitor Filesystem
-      const { Filesystem, Directory } = await import('@capacitor/filesystem')
-      
-      const fileName = `accord-update-${update.versionName || 'latest'}.apk`
-      
-      // Write the APK to cache directory
-      const writeResult = await Filesystem.writeFile({
-        path: fileName,
-        data: base64Data,
-        directory: Directory.Cache,
-      })
-
-      console.log('APK saved to:', writeResult.uri)
-      setStatusMessage("Starting installation...")
-
-      // Trigger APK installation using our native plugin
-      if (Capacitor?.Plugins?.AppUpdater) {
-        const result = await Capacitor.Plugins.AppUpdater.installApk({ path: fileName })
-        
-        if (result.permissionRequired) {
-          setStatusMessage(result.message || "Please grant install permission")
-          setDownloading(false)
-          return
-        }
-
-        if (result.success) {
-          // Mark version as applied
+          // Fallback: Open the download URL directly in browser
+          setStatusMessage("Opening download in browser...")
+          window.open(downloadUrl, '_blank')
+          
           if (update.versionName) {
             setAppliedVersion(update.versionName)
+            setPendingUpdate(null)
           }
-          setStatusMessage("Installation started! Please follow the prompts.")
         }
-      } else {
-        // Fallback: Open the download URL directly in browser
-        setStatusMessage("Opening download in browser...")
-        window.open(downloadUrl, '_blank')
-        
-        if (update.versionName) {
-          setAppliedVersion(update.versionName)
-        }
-      }
 
-      // Close the modal after a delay
-      setTimeout(() => {
-        setDownloading(false)
-        setShow(false)
-      }, 3000)
+        // Close the modal after a delay
+        setTimeout(() => {
+          setDownloading(false)
+          setShow(false)
+          isDownloadingRef.current = false
+          setUpdateInProgress(false)
+          setPendingUpdate(null)
+        }, 3000)
+        
+      } catch (downloadErr) {
+        console.error("Capacitor download failed, trying fetch fallback:", downloadErr)
+        
+        // Fallback to fetch method
+        await downloadWithFetch(downloadUrl)
+      }
 
     } catch (err) {
       console.error("Failed to download/install update:", err)
-      setStatusMessage("Download failed. Tap to retry.")
+      const errorMsg = err instanceof Error ? err.message : "Download failed"
+      setDownloadError(errorMsg)
+      setStatusMessage("Download failed. Please try again.")
       setDownloading(false)
+      isDownloadingRef.current = false
+      setUpdateInProgress(false)
     }
+  }
+
+  async function downloadWithFetch(downloadUrl: string) {
+    if (!update) return
+    
+    setStatusMessage("Downloading update...")
+    
+    // Use fetch to download with progress tracking
+    const response = await fetch(downloadUrl, {
+      mode: 'cors',
+      credentials: 'omit',
+    })
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('Update file not found on server. Please contact support.')
+      }
+      throw new Error(`Download failed: ${response.status}`)
+    }
+
+    const contentLength = response.headers.get('content-length')
+    const total = contentLength ? parseInt(contentLength, 10) : 0
+    
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error('Failed to get response reader')
+    }
+
+    const chunks: Uint8Array[] = []
+    let received = 0
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      
+      chunks.push(value)
+      received += value.length
+      
+      if (total > 0) {
+        const progress = Math.round((received / total) * 100)
+        setDownloadProgress(progress)
+        setStatusMessage(`Downloading... ${progress}%`)
+      } else {
+        // No content-length, show bytes downloaded
+        const mb = (received / (1024 * 1024)).toFixed(1)
+        setStatusMessage(`Downloading... ${mb} MB`)
+      }
+    }
+
+    // Combine chunks into single array
+    const apkData = new Uint8Array(received)
+    let position = 0
+    for (const chunk of chunks) {
+      apkData.set(chunk, position)
+      position += chunk.length
+    }
+
+    setStatusMessage("Saving APK file...")
+    setDownloadProgress(100)
+
+    // Convert to base64 for Capacitor Filesystem
+    const base64Data = btoa(
+      apkData.reduce((data, byte) => data + String.fromCharCode(byte), '')
+    )
+
+    // Import Capacitor Filesystem
+    const { Filesystem, Directory } = await import('@capacitor/filesystem')
+    
+    const fileName = `accord-update-${update.versionName || 'latest'}.apk`
+    
+    // Write the APK to cache directory
+    const writeResult = await Filesystem.writeFile({
+      path: fileName,
+      data: base64Data,
+      directory: Directory.Cache,
+    })
+
+    console.log('APK saved to:', writeResult.uri)
+    setStatusMessage("Starting installation...")
+
+    // Trigger APK installation using our native plugin
+    const Capacitor = (window as any).Capacitor
+    if (Capacitor?.Plugins?.AppUpdater) {
+      const result = await Capacitor.Plugins.AppUpdater.installApk({ path: fileName })
+      
+      if (result.permissionRequired) {
+        setStatusMessage(result.message || "Please grant install permission")
+        setDownloading(false)
+        isDownloadingRef.current = false
+        setUpdateInProgress(false)
+        return
+      }
+
+      if (result.success) {
+        // Mark version as applied
+        if (update.versionName) {
+          setAppliedVersion(update.versionName)
+          setPendingUpdate(null)
+        }
+        setStatusMessage("Installation started! Please follow the prompts.")
+      }
+    } else {
+      // Fallback: Open the download URL directly in browser
+      setStatusMessage("Opening download in browser...")
+      window.open(downloadUrl, '_blank')
+      
+      if (update.versionName) {
+        setAppliedVersion(update.versionName)
+        setPendingUpdate(null)
+      }
+    }
+
+    // Close the modal after a delay
+    setTimeout(() => {
+      setDownloading(false)
+      setShow(false)
+      isDownloadingRef.current = false
+      setUpdateInProgress(false)
+      setPendingUpdate(null) // Clear pending update on success
+    }, 3000)
   }
 
   function handleDismiss() {
@@ -280,25 +473,41 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
       if (update?.versionName) {
         setDismissedVersion(update.versionName)
       }
+      setPendingUpdate(null) // Clear pending update on dismiss
       setShow(false)
     }
   }
 
-  return (
-    <div aria-hidden={!show} style={{ display: show ? undefined : "none" }}>
-      {/* Backdrop for forced updates */}
-      {update.forceUpdate && (
-        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" />
-      )}
+  // Use portal to render at document body level to prevent unmounting on parent re-renders
+  const modalContent = (
+    <div 
+      id="update-checker-modal"
+      aria-hidden={!show} 
+      style={{ 
+        display: show ? 'block' : 'none',
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+      }}
+    >
+      {/* Backdrop */}
+      <div 
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
+        onClick={() => !update.forceUpdate && !downloading && handleDismiss()}
+      />
       
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-in fade-in zoom-in duration-300">
+      <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-in fade-in zoom-in duration-300 pointer-events-auto">
           {/* Header */}
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-full bg-[#00aeef]/10 flex items-center justify-center">
               {downloading ? (
                 <svg className="w-6 h-6 text-[#00aeef] animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              ) : downloadError ? (
+                <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               ) : (
                 <svg className="w-6 h-6 text-[#00aeef]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -308,7 +517,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">
-                {downloading ? "Downloading Update" : "Update Available"}
+                {downloading ? "Downloading Update..." : downloadError ? "Download Failed" : "Update Available"}
               </h3>
               {update.versionName && (
                 <p className="text-sm text-gray-500">Version {update.versionName}</p>
@@ -316,8 +525,35 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
             </div>
           </div>
 
-          {/* Downloading State */}
-          {downloading ? (
+          {/* Error State */}
+          {downloadError && !downloading ? (
+            <div className="py-4">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-sm text-red-800 font-medium">
+                  ❌ {downloadError}
+                </p>
+                <p className="text-xs text-red-600 mt-1">
+                  Please check your internet connection and try again.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                {!update.forceUpdate && (
+                  <button
+                    onClick={handleDismiss}
+                    className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  onClick={handleDownloadAndInstall}
+                  className="flex-1 px-4 py-3 text-sm font-medium text-white bg-[#00aeef] rounded-xl hover:bg-[#0096d6] transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          ) : downloading ? (
             <div className="py-4">
               {/* Progress Bar */}
               <div className="mb-3">
@@ -329,6 +565,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
                 </div>
               </div>
               <p className="text-sm text-gray-600 text-center">{statusMessage}</p>
+              <p className="text-xs text-gray-400 text-center mt-2">Please wait, do not close the app...</p>
             </div>
           ) : (
             <>
@@ -361,7 +598,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
                 {!update.forceUpdate && (
                   <button
                     onClick={handleDismiss}
-                    className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
+                    className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors active:bg-gray-300"
                   >
                     Later
                   </button>
@@ -369,7 +606,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
                 <button
                   onClick={handleDownloadAndInstall}
                   disabled={downloading}
-                  className={`flex-1 px-4 py-3 text-sm font-medium text-white bg-[#00aeef] rounded-xl hover:bg-[#0096d6] transition-colors disabled:opacity-50 ${update.forceUpdate ? 'w-full' : ''}`}
+                  className={`flex-1 px-4 py-3 text-sm font-medium text-white bg-[#00aeef] rounded-xl hover:bg-[#0096d6] transition-colors disabled:opacity-50 active:bg-[#0086c6] ${update.forceUpdate ? 'w-full' : ''}`}
                 >
                   <span className="flex items-center justify-center gap-2">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -385,4 +622,11 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
       </div>
     </div>
   )
+
+  // Render using portal to document body
+  if (typeof window !== 'undefined') {
+    return createPortal(modalContent, document.body)
+  }
+  
+  return modalContent
 }
