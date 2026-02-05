@@ -44,8 +44,9 @@ export default function PlannersPage() {
         setLoading(true);
         setApiError(false);
         try {
+            const { API_BASE_URL } = await import("@/lib/config");
             const token = localStorage.getItem("accessToken");
-            const res = await fetch("https://app.codewithseth.co.ke/api/planner/my", {
+            const res = await fetch(`${API_BASE_URL}/planner/my`, {
                 headers: {
                     "Content-Type": "application/json",
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),

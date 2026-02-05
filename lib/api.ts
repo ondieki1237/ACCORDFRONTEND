@@ -1,14 +1,11 @@
 import { authService } from "./auth"
 import { offlineStorage } from "./offline-storage"
+import { API_BASE_URL } from "./config"
 
-// Allow overriding the API base URL via environment variable for different environments
-// Use NEXT_PUBLIC_ so it's available on both server and client where needed
 /**
  * API Service - Centralized API calls
+ * Uses localhost in development, deployed API in production
  */
-
-// Always use deployed API
-const API_BASE_URL = "https://app.codewithseth.co.ke/api"
 
 export interface DashboardOverview {
   totalVisits: number

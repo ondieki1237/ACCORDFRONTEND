@@ -1,7 +1,5 @@
 import { authService } from '../auth';
-
-// Base URL (allow override via env var)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "https://app.codewithseth.co.ke/api"
+import { API_BASE_URL } from '../config';
 
 async function makeRequest(path: string, options: RequestInit = {}) {
   const token = authService.getAccessToken()

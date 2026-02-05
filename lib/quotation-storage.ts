@@ -38,7 +38,11 @@ const KEYS = {
   METADATA: "quotation_metadata",
 }
 
-const API_BASE = "https://app.codewithseth.co.ke/api"
+// Import API base dynamically
+let API_BASE = "https://app.codewithseth.co.ke/api"
+if (typeof window !== 'undefined') {
+  import('./config').then(c => { API_BASE = c.API_BASE_URL })
+}
 
 class QuotationStorageService {
   /**

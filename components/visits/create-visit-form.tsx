@@ -59,6 +59,44 @@ async function setPendingVisits(visits: any[]) {
   await Preferences.set({ key: LOCAL_KEY, value: JSON.stringify(visits) })
 }
 
+// Direct sync function that matches the form's submit logic
+// ALWAYS use production API for syncing offline visits
+const SYNC_API_URL = "https://app.codewithseth.co.ke/api"
+
+async function syncVisitDirectly(visitData: any): Promise<boolean> {
+  try {
+    const token = localStorage.getItem('accessToken')
+    
+    if (!token) {
+      console.error('No auth token available for sync')
+      return false
+    }
+
+    console.log('📤 Syncing to production API:', visitData.client?.name || 'Unknown')
+
+    const response = await fetch(`${SYNC_API_URL}/visits`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(visitData),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }))
+      console.error('Sync failed:', response.status, errorData)
+      return false
+    }
+
+    console.log('✅ Visit synced successfully')
+    return true
+  } catch (error) {
+    console.error('Sync error:', error)
+    return false
+  }
+}
+
 export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisitFormProps) {
   // Register a navigation block while this form is active so users cannot exit
   // using hardware back or swipe navigation. Only allow exit via Record Visit or Cancel.
@@ -209,29 +247,66 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
   useEffect(() => {
     const syncPending = async () => {
       const visitsToSync = await getPendingVisits()
-      if (navigator.onLine && visitsToSync.length > 0) {
-        const failed: any[] = []
-        for (const visit of visitsToSync) {
-          try {
-            await apiService.createVisit(visit)
-          } catch (err) {
+      
+      if (!navigator.onLine || visitsToSync.length === 0) {
+        return
+      }
+
+      console.log(`📤 Attempting to sync ${visitsToSync.length} offline visit(s)...`)
+      
+      const failed: any[] = []
+      const synced: any[] = []
+
+      for (const visit of visitsToSync) {
+        try {
+          // Use direct sync that matches form submit logic
+          const success = await syncVisitDirectly(visit)
+          if (success) {
+            synced.push(visit)
+          } else {
             failed.push(visit)
           }
-        }
-        setPendingVisitsState(failed)
-        await setPendingVisits(failed)
-        if (visitsToSync.length > 0) {
-          toast({
-            title: failed.length === 0 ? "Offline visits synced" : "Some visits failed to sync",
-            description: failed.length === 0 ? "All offline visits have been uploaded." : "Some offline visits could not be uploaded.",
-            variant: failed.length === 0 ? "default" : "destructive",
-          })
+        } catch (err) {
+          console.error('Failed to sync visit:', err)
+          failed.push(visit)
         }
       }
+
+      // Update pending visits with only the failed ones
+      setPendingVisitsState(failed)
+      await setPendingVisits(failed)
+
+      // Show appropriate toast
+      if (synced.length > 0) {
+        toast({
+          title: failed.length === 0 ? "✅ Offline visits synced" : "⚠️ Some visits synced",
+          description: failed.length === 0 
+            ? `Successfully uploaded ${synced.length} offline visit(s).`
+            : `Synced ${synced.length}, but ${failed.length} visit(s) failed. Will retry later.`,
+          variant: failed.length === 0 ? "default" : "destructive",
+        })
+      }
     }
-    window.addEventListener("online", syncPending)
+
+    // Sync on mount
     syncPending()
-    return () => window.removeEventListener("online", syncPending)
+
+    // Sync when coming back online
+    window.addEventListener("online", syncPending)
+
+    // Also try to sync periodically (every 30 seconds) if there are pending items
+    const periodicSync = setInterval(async () => {
+      const pending = await getPendingVisits()
+      if (navigator.onLine && pending.length > 0) {
+        console.log('⏰ Periodic sync check - found pending visits')
+        syncPending()
+      }
+    }, 30000)
+
+    return () => {
+      window.removeEventListener("online", syncPending)
+      clearInterval(periodicSync)
+    }
   }, [toast])
 
   const updateField = (field: keyof VisitFormData, value: string | boolean) => {
@@ -346,7 +421,7 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
       // Special field for visibility in list if needed
       visitData.revisitRequired = formData.isFollowUpRequired;
 
-      // Use production API
+      // Always use production API for visits (sync consistency)
       const token = localStorage.getItem('accessToken');
       const isEditing = !!(initialData?._id || initialData?.id);
       const targetId = initialData?._id || initialData?.id;
@@ -354,9 +429,10 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
       console.log(`${isEditing ? 'Updating' : 'Creating'} visit:`, JSON.stringify(visitData, null, 2));
       console.log('Target URL ID:', targetId);
 
+      // Use production API to ensure data consistency with offline sync
       const url = isEditing
-        ? `https://app.codewithseth.co.ke/api/visits/${targetId}`
-        : 'https://app.codewithseth.co.ke/api/visits';
+        ? `${SYNC_API_URL}/visits/${targetId}`
+        : `${SYNC_API_URL}/visits`;
 
       const response = await fetch(url, {
         method: isEditing ? 'PUT' : 'POST',
@@ -416,15 +492,25 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
 
       // If network error, save to pending visits
       if (!navigator.onLine || error.message.includes('Failed to fetch') || error.message.includes('Network request failed')) {
+        // Add metadata for offline tracking
+        const offlineVisit = {
+          ...visitData,
+          _offlineId: `visit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          _savedAt: new Date().toISOString(),
+          _syncAttempts: 0,
+        }
+        
         const pending = await getPendingVisits()
-        const newPending = [...pending, visitData]
+        const newPending = [...pending, offlineVisit]
         await setPendingVisits(newPending)
         setPendingVisitsState(newPending)
 
+        console.log('📱 Visit saved offline:', offlineVisit._offlineId)
+
         toast({
-          title: "Saved Offline",
-          description: "You are offline. Visit saved locally and will sync when online.",
-          variant: "default", // Use default or a specific offline variant if available
+          title: "📱 Saved Offline",
+          description: `Visit to "${formData.clientName}" saved locally. Will sync when online.`,
+          variant: "default",
         })
         // Clear draft since it's now "saved" as pending
         await Preferences.remove({ key: DRAFT_KEY })

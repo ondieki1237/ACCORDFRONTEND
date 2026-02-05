@@ -16,6 +16,7 @@ import { MobileOptimizations } from "@/components/mobile/mobile-optimizations"
 import { TouchGestures } from "@/components/mobile/touch-gestures"
 import { SplashScreen } from "@/components/layout/splash-screen"
 import UpdateChecker from "@/components/update/UpdateChecker"
+import { OfflineSyncManager } from "@/components/offline-sync-manager"
 import { authService } from "@/lib/auth"
 import { Toaster } from "@/components/ui/toaster"
 import { Button } from "@/components/ui/button"
@@ -150,6 +151,7 @@ export default function HomePage() {
         <div className="min-h-screen bg-gradient-to-br from-[#e6ecf5] to-[#d1dbe9]">
           <MobileOptimizations />
           <OfflineIndicator />
+          <OfflineSyncManager />
           {showRegister ? (
             <RegisterForm onSuccess={handleAuthSuccess} onSwitchToLogin={() => setShowRegister(false)} />
           ) : (
@@ -173,7 +175,10 @@ export default function HomePage() {
               Admin access detected. Please use the dedicated admin panel.
             </p>
             <Button
-              onClick={() => window.location.href = 'https://app.codewithseth.co.ke/admin'}
+              onClick={async () => {
+                const { ADMIN_PANEL_URL } = await import('@/lib/config')
+                window.location.href = ADMIN_PANEL_URL
+              }}
               className="bg-[#00aeef] hover:bg-[#0097d6] w-full"
             >
               Go to Admin Panel
@@ -214,6 +219,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-gradient-to-br from-[#e6ecf5] to-[#d1dbe9] pb-20 lg:pb-0">
       <MobileOptimizations />
       <OfflineIndicator />
+      <OfflineSyncManager />
       <UpdateChecker role={isEngineer ? 'engineer' : 'sales'} platform={"android"} />
       <PWAInstall />
       <TouchGestures onSwipeLeft={handleSwipeLeft} onSwipeRight={handleSwipeRight}>

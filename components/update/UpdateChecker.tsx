@@ -12,9 +12,10 @@ type UpdateInfo = {
   downloadUrl?: string
 }
 
-const CHECK_ENDPOINT = process.env.NEXT_PUBLIC_UPDATE_CHECK_URL || "https://app.codewithseth.co.ke/api/app-updates/check"
-const APK_DOWNLOAD_URL = "https://app.codewithseth.co.ke/downloads/app-debug.apk"
-const APP_VERSION = "1.0.0" // Current app version
+import { UPDATE_CHECK_URL, APK_DOWNLOAD_URL } from "@/lib/config"
+
+const CHECK_ENDPOINT = UPDATE_CHECK_URL
+const APP_VERSION = "1.2.2" // Current app version
 const APPLIED_VERSION_KEY = "accord_applied_update_version"
 const DISMISSED_VERSION_KEY = "accord_dismissed_update_version"
 const PENDING_UPDATE_KEY = "accord_pending_update"
@@ -135,9 +136,16 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
         // Handle both response formats
         const hasUpdate = data.hasUpdate || data.updateAvailable
         const updateInfo = data.update || data
+        const latestVersion = updateInfo.latestVersion || updateInfo.versionName
+
+        // Skip if current version matches latest version (no update needed)
+        if (currentVersion === latestVersion) {
+          console.log(`✅ Already on latest version ${currentVersion}, no update needed`)
+          return
+        }
 
         if (hasUpdate) {
-          const version = updateInfo.latestVersion || updateInfo.versionName
+          const version = latestVersion
           
           // Check if this version was already applied
           const appliedVersion = getAppliedVersion()

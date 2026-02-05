@@ -45,8 +45,9 @@ export default function ReportsPage() {
     const fetchReports = async () => {
         setLoading(true);
         try {
+            const { API_BASE_URL } = await import("@/lib/config");
             const token = localStorage.getItem("accessToken");
-            const res = await fetch("https://app.codewithseth.co.ke/api/reports/my", {
+            const res = await fetch(`${API_BASE_URL}/reports/my`, {
                 headers: {
                     "Content-Type": "application/json",
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),

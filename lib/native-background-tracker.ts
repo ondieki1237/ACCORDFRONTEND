@@ -38,7 +38,7 @@ interface LocationPayload {
 }
 
 class NativeBackgroundTracker {
-  private readonly API_BASE = "https://app.codewithseth.co.ke/api";
+  private API_BASE = "https://app.codewithseth.co.ke/api"; // Will be updated from config
   private isConfigured = false;
   private scheduleCheckInterval: any = null;
   private lastStoredLocation: { latitude: number; longitude: number } | null = null;

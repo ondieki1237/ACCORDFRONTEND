@@ -26,8 +26,8 @@ class AggressiveLocationTracker {
   private lastStoredLocation: { latitude: number; longitude: number } | null = null
   private readonly MIN_DISTANCE_METERS = 5 // Minimum 5 meters movement to store
   
-  // Configuration
-  private readonly API_BASE = "https://app.codewithseth.co.ke/api"
+  // Configuration - imported dynamically to avoid circular deps
+  private API_BASE = "https://app.codewithseth.co.ke/api" // Will be updated in constructor
   private readonly UPLOAD_INTERVAL = 20000 // Upload every 20 seconds
   private readonly MAX_BUFFER_SIZE = 50 // Max locations to buffer before forced upload
   private readonly HIGH_ACCURACY_OPTIONS: PositionOptions = {
