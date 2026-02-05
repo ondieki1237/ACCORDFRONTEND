@@ -13,6 +13,31 @@ type UpdateInfo = {
 }
 
 const CHECK_ENDPOINT = process.env.NEXT_PUBLIC_UPDATE_CHECK_URL || "https://app.codewithseth.co.ke/api/app-updates/check"
+const APPLIED_VERSION_KEY = "accord_applied_update_version"
+const DISMISSED_VERSION_KEY = "accord_dismissed_update_version"
+
+// Helper to get/set applied versions
+function getAppliedVersion(): string | null {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem(APPLIED_VERSION_KEY)
+}
+
+function setAppliedVersion(version: string): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(APPLIED_VERSION_KEY, version)
+  }
+}
+
+function getDismissedVersion(): string | null {
+  if (typeof window === "undefined") return null
+  return sessionStorage.getItem(DISMISSED_VERSION_KEY)
+}
+
+function setDismissedVersion(version: string): void {
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem(DISMISSED_VERSION_KEY, version)
+  }
+}
 
 export default function UpdateChecker({ role = "sales", platform = "android" }: { role?: string; platform?: string }) {
   const [update, setUpdate] = useState<UpdateInfo | null>(null)
@@ -51,6 +76,24 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
           const body = await res.json()
           if (body && body.updateAvailable && body.update) {
             const upd = body.update
+            const updateVersion = upd.version
+
+            // Check if this version was already applied
+            const appliedVersion = getAppliedVersion()
+            if (appliedVersion && appliedVersion === updateVersion) {
+              console.log(`✅ Update ${updateVersion} already applied, skipping prompt`)
+              if (mounted) setChecking(false)
+              return
+            }
+
+            // Check if this version was dismissed this session (non-forced only)
+            const dismissedVersion = getDismissedVersion()
+            if (!upd.forced && dismissedVersion === updateVersion) {
+              console.log(`⏭️ Update ${updateVersion} dismissed this session, skipping prompt`)
+              if (mounted) setChecking(false)
+              return
+            }
+
             const mapped: UpdateInfo = {
               version: upd.version,
               releaseNotes: upd.releaseNotes,
@@ -101,6 +144,12 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
         }
       }
 
+      // Mark this version as applied BEFORE restarting
+      if (update.version) {
+        setAppliedVersion(update.version)
+        console.log(`📝 Marked version ${update.version} as applied`)
+      }
+
       // If restart is required
       if (update.requiresRestart) {
         setApplied(true)
@@ -124,6 +173,10 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
 
   function handleDismiss() {
     if (!update?.forced) {
+      // Remember dismissed version for this session only
+      if (update?.version) {
+        setDismissedVersion(update.version)
+      }
       setShow(false)
     }
   }
