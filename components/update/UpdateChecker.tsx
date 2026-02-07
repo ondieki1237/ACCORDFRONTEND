@@ -15,7 +15,7 @@ type UpdateInfo = {
 import { UPDATE_CHECK_URL, APK_DOWNLOAD_URL } from "@/lib/config"
 
 const CHECK_ENDPOINT = UPDATE_CHECK_URL
-const APP_VERSION = "1.2.2" // Current app version
+const APP_VERSION = "1.2.3" // Current app version
 const APPLIED_VERSION_KEY = "accord_applied_update_version"
 const DISMISSED_VERSION_KEY = "accord_dismissed_update_version"
 const PENDING_UPDATE_KEY = "accord_pending_update"

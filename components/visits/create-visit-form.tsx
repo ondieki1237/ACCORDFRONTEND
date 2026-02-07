@@ -379,6 +379,8 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
       // Defaulting time to 09:00 as per user request to remove time input
       const dateTime = new Date(`${formData.date}T09:00:00`).toISOString()
 
+      const visitPurpose = (formData.visitPurpose || "").trim() || "demo"
+
       visitData = {
         date: dateTime,
         startTime: dateTime,
@@ -388,7 +390,7 @@ export function CreateVisitForm({ onSuccess, onCancel, initialData }: CreateVisi
           level: formData.hospitalLevel,
           location: formData.location,
         },
-        visitPurpose: formData.visitPurpose,
+        visitPurpose,
         visitOutcome: formData.visitOutcome,
         notes: formData.notes,
         isFollowUpRequired: formData.isFollowUpRequired,

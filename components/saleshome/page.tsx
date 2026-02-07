@@ -11,6 +11,7 @@ import DocumentsViewer from "@/components/documents/DocumentsViewer";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { authService, type User } from "@/lib/auth";
 import { VisitList } from "@/components/visits/visit-list";
+import { VisitDetail } from "@/components/visits/visit-detail";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
@@ -61,6 +62,7 @@ export default function SalesDashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showCreateReport, setShowCreateReport] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<any>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -538,20 +540,49 @@ export default function SalesDashboard() {
             )}
             {activeTab === "visits" && (
               <div className="space-y-4">
-                <VisitList
-                  onCreateVisit={() => {
-                    setActiveTab("visits");
-                    router.push("/visits/new");
-                  }}
-                  onViewVisit={(visit) => {
-                    setActiveTab("visits");
-                    router.push(`/visits/${visit._id}`);
-                  }}
-                  onCreateEngineerVisit={() => {
-                    router.push("/visits/engineer/new");
-                  }}
-                  showActions={false}
-                />
+                {selectedVisit ? (
+                  <VisitDetail
+                    visit={selectedVisit}
+                    onBack={() => setSelectedVisit(null)}
+                    onEdit={() => {
+                      // Navigate to edit with initial data
+                      router.push(`/visits/edit?id=${selectedVisit._id || selectedVisit.id}`);
+                    }}
+                    onDelete={async () => {
+                      // Handle delete inline
+                      try {
+                        const token = localStorage.getItem("accessToken");
+                        const res = await fetch(`https://app.codewithseth.co.ke/api/visits/${selectedVisit._id || selectedVisit.id}`, {
+                          method: "DELETE",
+                          headers: {
+                            Authorization: `Bearer ${token}`,
+                          },
+                        });
+                        if (res.ok) {
+                          toast({ title: "Visit deleted", description: "Visit removed successfully." });
+                          setSelectedVisit(null);
+                        } else {
+                          throw new Error("Delete failed");
+                        }
+                      } catch (err) {
+                        toast({ title: "Delete failed", description: "Could not delete visit.", variant: "destructive" });
+                      }
+                    }}
+                  />
+                ) : (
+                  <VisitList
+                    onCreateVisit={() => {
+                      router.push("/visits/new");
+                    }}
+                    onViewVisit={(visit) => {
+                      setSelectedVisit(visit);
+                    }}
+                    onCreateEngineerVisit={() => {
+                      router.push("/visits/engineer/new");
+                    }}
+                    showActions={false}
+                  />
+                )}
               </div>
             )}
             {activeTab === "communications" && (
