@@ -53,7 +53,7 @@ export interface Visit {
   }
   visitPurpose: string
   visitOutcome?: string
-  contacts?: { 
+  contacts?: {
     name: string
     role: string
     phone?: string
@@ -109,14 +109,14 @@ class ApiService {
   }
   private async makeRequest(endpoint: string, options: RequestInit = {}) {
     let token = authService.getAccessToken();
-    
+
     console.log('🌐 API Request:', {
       endpoint,
       fullUrl: `${API_BASE_URL}${endpoint}`,
       method: options.method || 'GET',
       hasToken: !!token
     })
-    
+
     let response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
@@ -169,7 +169,7 @@ class ApiService {
                   ...options.headers,
                 },
               });
-              
+
               // Check for new token in retry response headers too
               const retryNewToken = response.headers.get('X-New-Access-Token') || response.headers.get('x-new-access-token');
               if (retryNewToken) {
@@ -220,14 +220,14 @@ class ApiService {
     }
 
     const jsonResponse = await response.json();
-    
+
     console.log('📥 API Response received:', {
       status: response.status,
       statusText: response.statusText,
       ok: response.ok,
       responseData: jsonResponse
     })
-    
+
     return jsonResponse;
   }
 
@@ -263,16 +263,16 @@ class ApiService {
       if (endDate) params.append("endDate", endDate)
 
       const response = await this.makeRequest(`/trails?${params.toString()}`)
-      
+
       // Cache successful response
       if (response && Array.isArray(response.data)) {
         await offlineStorage.cacheTrails(response.data)
       }
-      
+
       return response
     } catch (error) {
       console.warn('Failed to fetch trails from server, using cached data:', error)
-      
+
       // Return cached data if offline
       const cachedTrails = await offlineStorage.getCachedTrails()
       return {
@@ -293,16 +293,16 @@ class ApiService {
       if (endDate) params.append("endDate", endDate)
 
       const response = await this.makeRequest(`/visits?${params.toString()}`)
-      
+
       // Cache successful response
       if (response && Array.isArray(response.data)) {
         await offlineStorage.cacheVisits(response.data)
       }
-      
+
       return response
     } catch (error) {
       console.warn('Failed to fetch visits from server, using cached data:', error)
-      
+
       // Return cached data if offline
       const cachedVisits = await offlineStorage.getCachedVisits()
       return {
@@ -322,10 +322,10 @@ class ApiService {
       return response
     } catch (error) {
       console.warn('Failed to create trail online, saving offline:', error)
-      
+
       // If offline, store in pending sync
       await offlineStorage.addToPendingSync('trails', trailData)
-      
+
       // Return a mock response with offline indicator
       return {
         ...trailData,
@@ -404,7 +404,7 @@ class ApiService {
       if (visitData.marketInsights && visitData.marketInsights.trim() !== '') {
         payload.marketInsights = visitData.marketInsights;
       }
-      
+
       // Add array fields if they exist
       if (visitData.existingEquipment && visitData.existingEquipment.length > 0) {
         payload.existingEquipment = visitData.existingEquipment;
@@ -424,7 +424,7 @@ class ApiService {
       if (visitData.attachments && visitData.attachments.length > 0) {
         payload.attachments = visitData.attachments;
       }
-      
+
       console.log('Creating visit online with payload:', payload)
       const response = await this.makeRequest("/visits", {
         method: "POST",
@@ -449,10 +449,10 @@ class ApiService {
       });
     } catch (error) {
       console.warn('Failed to create engineer visit online, saving offline:', error)
-      
+
       // If offline, store in pending sync
       await offlineStorage.addToPendingSync('engineerVisits', visitData)
-      
+
       // Return a mock response with offline indicator
       const engineerVisit = {
         id: `offline_engineer_visit_${Date.now()}`,
@@ -467,7 +467,7 @@ class ApiService {
         contacts: visitData.contacts || [],
         _createdOffline: true
       }
-      
+
       return engineerVisit
     }
   }
@@ -529,12 +529,12 @@ class ApiService {
     try {
       const params = new URLSearchParams({ page: page.toString(), limit: limit.toString() })
       Object.entries(filters).forEach(([k, v]) => params.append(k, v))
-      
+
       const fullUrl = `/leads?${params.toString()}`
       console.log('🔍 Fetching leads from:', `${API_BASE_URL}${fullUrl}`)
-      
+
       const response = await this.makeRequest(fullUrl)
-      
+
       console.log('✅ Leads API raw response:', response)
       console.log('📊 Response structure:', {
         hasSuccess: 'success' in response,
@@ -544,17 +544,17 @@ class ApiService {
         isDataArray: Array.isArray(response.data),
         dataLength: Array.isArray(response.data) ? response.data.length : 'N/A'
       })
-      
+
       // Cache successful response
       if (response && Array.isArray(response.data)) {
         console.log('💾 Caching', response.data.length, 'leads')
         await offlineStorage.cacheLeads(response.data)
       }
-      
+
       return response
     } catch (error) {
       console.error('❌ Failed to fetch leads from server:', error)
-      
+
       // Return cached data if offline
       const cachedLeads = await offlineStorage.getCachedLeads()
       console.log('📦 Using cached leads:', cachedLeads.length, 'items')
@@ -641,10 +641,10 @@ class ApiService {
 
     try {
       const response = await this.makeRequest(`/follow-up-visits?${query}`)
-      
+
       // Cache the results for offline access
       await offlineStorage.cacheFollowUpVisits(response.data || response)
-      
+
       return response
     } catch (error: any) {
       // If offline or request fails, try to get cached data
@@ -777,6 +777,28 @@ class ApiService {
   async deleteEngineeringPricing(id: string): Promise<void> {
     return this.makeRequest(`/engineering-pricing/${id}`, {
       method: "DELETE",
+    })
+  }
+
+  // Password Reset API methods
+  async requestPasswordReset(email: string): Promise<any> {
+    return this.makeRequest("/auth/password-reset/request", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async verifyResetCode(email: string, code: string): Promise<any> {
+    return this.makeRequest("/auth/password-reset/verify", {
+      method: "POST",
+      body: JSON.stringify({ email, code }),
+    })
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string): Promise<any> {
+    return this.makeRequest("/auth/password-reset/reset", {
+      method: "POST",
+      body: JSON.stringify({ email, code, newPassword }),
     })
   }
 }

@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react"
 import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
+import { PasswordResetForm } from "@/components/auth/password-reset-form"
 import { ProductManagement } from "@/components/products/product-management"
 import { LeadManagement } from "@/components/leads/lead-management"
 import { MachineManagement } from "@/components/machines/machine-management"
@@ -28,6 +29,7 @@ import { Home, Calendar, ShoppingCart, User, Wrench, TrendingUp } from "lucide-r
 export default function HomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
+  const [showPasswordReset, setShowPasswordReset] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [showSplash, setShowSplash] = useState(true)
   const [currentPage, setCurrentPage] = useState("dashboard")
@@ -40,11 +42,11 @@ export default function HomePage() {
       try {
         const token = authService.getAccessToken()
         const user = await authService.getCurrentUser()
-        
+
         if (token && user) {
           setIsAuthenticated(true)
           setCurrentUser(user)
-          
+
           // Check user role
           const userRole = user?.role?.toLowerCase() || ''
           setIsEngineer(userRole.includes('engineer') || userRole === 'engineer')
@@ -71,12 +73,12 @@ export default function HomePage() {
 
   const handleAuthSuccess = async () => {
     setIsAuthenticated(true)
-    
+
     // Get user data after login
     try {
       const user = await authService.getCurrentUser()
       setCurrentUser(user)
-      
+
       // Check user role
       const userRole = user?.role?.toLowerCase() || ''
       setIsEngineer(userRole.includes('engineer') || userRole === 'engineer')
@@ -101,7 +103,7 @@ export default function HomePage() {
 
   const handleSwipeLeft = () => {
     // Different pages for engineer vs sales
-    const pages = isEngineer 
+    const pages = isEngineer
       ? ["dashboard", "visits", "expenses", "leads", "profile"]
       : ["dashboard", "visits", "products", "leads", "profile"]
     const currentIndex = pages.indexOf(currentPage)
@@ -112,7 +114,7 @@ export default function HomePage() {
 
   const handleSwipeRight = () => {
     // Different pages for engineer vs sales
-    const pages = isEngineer 
+    const pages = isEngineer
       ? ["dashboard", "visits", "expenses", "leads", "profile"]
       : ["dashboard", "visits", "products", "leads", "profile"]
     const currentIndex = pages.indexOf(currentPage)
@@ -152,10 +154,19 @@ export default function HomePage() {
           <MobileOptimizations />
           <OfflineIndicator />
           <OfflineSyncManager />
-          {showRegister ? (
+          {showPasswordReset ? (
+            <PasswordResetForm onSwitchToLogin={() => {
+              setShowPasswordReset(false)
+              setShowRegister(false)
+            }} />
+          ) : showRegister ? (
             <RegisterForm onSuccess={handleAuthSuccess} onSwitchToLogin={() => setShowRegister(false)} />
           ) : (
-            <LoginForm onSuccess={handleAuthSuccess} onSwitchToRegister={() => setShowRegister(true)} />
+            <LoginForm
+              onSuccess={handleAuthSuccess}
+              onSwitchToRegister={() => setShowRegister(true)}
+              onSwitchToReset={() => setShowPasswordReset(true)}
+            />
           )}
           <Toaster />
         </div>
@@ -223,7 +234,7 @@ export default function HomePage() {
       <UpdateChecker role={isEngineer ? 'engineer' : 'sales'} platform={"android"} />
       <PWAInstall />
       <TouchGestures onSwipeLeft={handleSwipeLeft} onSwipeRight={handleSwipeRight}>
-  <main className="w-full px-4 py-4 lg:container lg:mx-auto lg:p-8">
+        <main className="w-full px-4 py-4 lg:container lg:mx-auto lg:p-8">
           <div className="hidden lg:block mb-8">
             <h1 className="text-4xl font-extrabold text-[#00aeef] tracking-tight">ACCORD Dashboard</h1>
             <p className="text-gray-600 mt-2">Streamline your business operations</p>
@@ -244,32 +255,31 @@ export default function HomePage() {
             : { bottom: 0 }
         }
       >
-        {(isEngineer 
+        {(isEngineer
           ? [
-              { id: "dashboard", label: "Home", icon: Home },
-              { id: "visits", label: "My Services", icon: Wrench },
-              { id: "expenses", label: "Expenses", icon: ShoppingCart },
-              { id: "leads", label: "Machines", icon: Wrench },
-              { id: "profile", label: "Profile", icon: User },
-            ]
+            { id: "dashboard", label: "Home", icon: Home },
+            { id: "visits", label: "My Services", icon: Wrench },
+            { id: "expenses", label: "Expenses", icon: ShoppingCart },
+            { id: "leads", label: "Machines", icon: Wrench },
+            { id: "profile", label: "Profile", icon: User },
+          ]
           : [
-              { id: "dashboard", label: "Home", icon: Home },
-              { id: "visits", label: "Visits", icon: Calendar },
-              { id: "products", label: "Products", icon: ShoppingCart },
-              { id: "leads", label: "Leads", icon: TrendingUp },
-              { id: "profile", label: "Profile", icon: User },
-            ]
+            { id: "dashboard", label: "Home", icon: Home },
+            { id: "visits", label: "Visits", icon: Calendar },
+            { id: "products", label: "Products", icon: ShoppingCart },
+            { id: "leads", label: "Leads", icon: TrendingUp },
+            { id: "profile", label: "Profile", icon: User },
+          ]
         ).map(({ id, label, icon: Icon }) => {
           const isActive = currentPage === id
           return (
             <button
               key={id}
               onClick={() => setCurrentPage(id)}
-              className={`flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-all duration-300 ${
-                isActive
+              className={`flex flex-col items-center justify-center px-3 py-2 rounded-xl transition-all duration-300 ${isActive
                   ? "bg-[#00aeef] text-white shadow-inner scale-105"
                   : "text-gray-600 hover:bg-gray-100/50 hover:scale-105"
-              }`}
+                }`}
             >
               <Icon className="h-5 w-5 mb-1" />
               <span className="text-xs font-semibold">{label}</span>

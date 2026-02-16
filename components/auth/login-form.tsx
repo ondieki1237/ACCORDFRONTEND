@@ -11,9 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 interface LoginFormProps {
   onSuccess: () => void;
   onSwitchToRegister: () => void;
+  onSwitchToReset: () => void;
 }
 
-export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
+export function LoginForm({ onSuccess, onSwitchToRegister, onSwitchToReset }: LoginFormProps) {
   const [credentials, setCredentials] = useState<LoginCredentials>({
     email: "",
     password: "",
@@ -89,6 +90,17 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
             className="h-10 text-sm rounded-md border border-gray-300 focus:border-[#00aeef] focus:ring-2 focus:ring-[#00aeef]/20"
             required
           />
+        </div>
+
+        {/* Forgot Password Link */}
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onSwitchToReset}
+            className="text-xs text-[#00aeef] hover:text-[#0097d6] hover:underline"
+          >
+            Forgot Password?
+          </button>
         </div>
 
         {/* Submit */}
