@@ -50,10 +50,12 @@ export function ProductList({ onViewProduct }: ProductListProps) {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [selectedBrand, setSelectedBrand] = useState<string>("all")
   const [sortBy, setSortBy] = useState<string>("name")
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const [brands, setBrands] = useState<string[]>([])
   const { toast } = useToast()
 
   // Monitor online/offline status
@@ -87,7 +89,7 @@ export function ProductList({ onViewProduct }: ProductListProps) {
     } else {
       fetchProducts()
     }
-  }, [selectedCategory, sortBy, searchQuery, isOffline])
+  }, [selectedCategory, selectedBrand, sortBy, searchQuery, isOffline, currentPage])
 
   const loadLastSyncTime = async () => {
     const syncTime = await productStorage.getLastSyncTime()
@@ -106,6 +108,10 @@ export function ProductList({ onViewProduct }: ProductListProps) {
         setAllProducts(cachedProducts)
         setProducts(cachedProducts)
         setTotal(cachedProducts.length)
+
+        // Extract brands from cached products
+        const uniqueBrands = Array.from(new Set(cachedProducts.map(p => p.brand).filter(Boolean))).sort()
+        setBrands(uniqueBrands)
       }
 
       if (cachedCategories.length > 0) {
@@ -148,7 +154,16 @@ export function ProductList({ onViewProduct }: ProductListProps) {
 
       // Apply category filter
       if (selectedCategory !== "all") {
-        filtered = filtered.filter((p) => p.category === selectedCategory)
+        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const target = normalize(selectedCategory);
+        filtered = filtered.filter((p) => normalize(p.category) === target);
+      }
+
+      // Apply brand filter
+      if (selectedBrand !== "all") {
+        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const target = normalize(selectedBrand);
+        filtered = filtered.filter((p) => p.brand && normalize(p.brand) === target);
       }
 
       // Apply sorting
@@ -223,6 +238,11 @@ export function ProductList({ onViewProduct }: ProductListProps) {
       setProducts(allProductsData)
       setCategories(categoriesData)
       setTotal(allProductsData.length)
+
+      // Update brands
+      const uniqueBrands = Array.from(new Set(allProductsData.map(p => p.brand).filter(Boolean))).sort()
+      setBrands(uniqueBrands)
+
       await loadLastSyncTime()
 
       const cacheSize = await productStorage.getCacheSize()
@@ -261,18 +281,38 @@ export function ProductList({ onViewProduct }: ProductListProps) {
       let url = `${API_BASE}/products?page=${currentPage}&limit=20&sort_by=${sortBy}&sort_order=asc`
 
       if (selectedCategory !== "all") {
-        url += `&category=${encodeURIComponent(selectedCategory)}`
+        // Find the category object to get the slug if possible
+        const cat = categories.find(c => c.name === selectedCategory || c.slug === selectedCategory)
+        const catParam = cat ? cat.slug : selectedCategory
+        url += `&category=${encodeURIComponent(catParam)}`
+      }
+
+      if (selectedBrand !== "all") {
+        url += `&brand=${encodeURIComponent(selectedBrand)}`
       }
 
       if (searchQuery.trim()) {
         url = `${API_BASE}/search?q=${encodeURIComponent(searchQuery)}&limit=20`
+        if (selectedCategory !== "all") {
+          const cat = categories.find(c => c.name === selectedCategory || c.slug === selectedCategory)
+          const catParam = cat ? cat.slug : selectedCategory
+          url += `&category=${encodeURIComponent(catParam)}`
+        }
+        if (selectedBrand !== "all") {
+          url += `&brand=${encodeURIComponent(selectedBrand)}`
+        }
       }
 
       const response = await fetch(url)
       const data = await response.json()
 
       if (data.success) {
-        setProducts(data.data || [])
+        let results = data.data || []
+
+        // Apply client-side sorting as fallback/reinforcement
+        results = productStorage.sortProducts(results, sortBy, "asc")
+
+        setProducts(results)
         if (data.pagination) {
           setTotalPages(data.pagination.total_pages)
           setTotal(data.pagination.total)
@@ -300,6 +340,7 @@ export function ProductList({ onViewProduct }: ProductListProps) {
   const clearFilters = () => {
     setSearchQuery("")
     setSelectedCategory("all")
+    setSelectedBrand("all")
     setSortBy("name")
     setCurrentPage(1)
   }
@@ -365,12 +406,11 @@ export function ProductList({ onViewProduct }: ProductListProps) {
           </div>
           <div className="flex flex-col gap-2">
             {/* Online/Offline Status */}
-            <Badge 
-              className={`${
-                isOffline 
-                  ? "bg-red-500 border-0" 
-                  : "bg-green-500 border-0"
-              } text-white flex items-center gap-1`}
+            <Badge
+              className={`${isOffline
+                ? "bg-red-500 border-0"
+                : "bg-green-500 border-0"
+                } text-white flex items-center gap-1`}
             >
               {isOffline ? (
                 <>
@@ -438,8 +478,28 @@ export function ProductList({ onViewProduct }: ProductListProps) {
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map((cat) => (
-                    <SelectItem key={cat.slug} value={cat.name}>
+                    <SelectItem key={cat.slug} value={cat.slug || cat.name}>
                       {cat.name} ({cat.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                Manufacturer
+              </label>
+              <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200">
+                  <SelectValue placeholder="All Manufacturers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Manufacturers</SelectItem>
+                  {brands.map((brand) => (
+                    <SelectItem key={brand} value={brand}>
+                      {brand}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -473,12 +533,17 @@ export function ProductList({ onViewProduct }: ProductListProps) {
           </div>
 
           {/* Active Filters */}
-          {(selectedCategory !== "all" || searchQuery) && (
+          {(selectedCategory !== "all" || selectedBrand !== "all" || searchQuery) && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm text-gray-600">Active filters:</span>
               {selectedCategory !== "all" && (
-                <Badge variant="secondary" className="rounded-lg">
-                  {selectedCategory}
+                <Badge variant="secondary" className="rounded-lg bg-blue-100 text-[#00aeef] border-0">
+                  Category: {categories.find(c => c.slug === selectedCategory)?.name || selectedCategory}
+                </Badge>
+              )}
+              {selectedBrand !== "all" && (
+                <Badge variant="secondary" className="rounded-lg bg-green-100 text-green-700 border-0">
+                  Manufacturer: {selectedBrand}
                 </Badge>
               )}
               {searchQuery && (
