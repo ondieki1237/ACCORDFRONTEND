@@ -123,11 +123,10 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
               {product.images.map((image, index) => (
                 <Card
                   key={index}
-                  className={`rounded-xl overflow-hidden cursor-pointer transition-all ${
-                    selectedImage === index
-                      ? "ring-4 ring-[#00aeef]"
-                      : "hover:ring-2 ring-gray-300"
-                  }`}
+                  className={`rounded-xl overflow-hidden cursor-pointer transition-all ${selectedImage === index
+                    ? "ring-4 ring-[#00aeef]"
+                    : "hover:ring-2 ring-gray-300"
+                    }`}
                   onClick={() => setSelectedImage(index)}
                   style={{ boxShadow: "4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff" }}
                 >
@@ -249,7 +248,39 @@ export function ProductDetail({ product, onBack }: ProductDetailProps) {
             </Button>
             <Button
               variant="outline"
-              className="h-14 rounded-2xl text-lg font-semibold border-2 shadow-lg"
+              className="h-14 rounded-2xl text-lg font-semibold border-2 shadow-lg hover:bg-gray-50 flex items-center justify-center gap-2"
+              onClick={async () => {
+                const shareUrl = `https://accordmedical.co.ke/product/${product.slug}`
+                try {
+                  const { Share } = await import('@capacitor/share')
+                  await Share.share({
+                    title: product.name,
+                    text: `Check out ${product.name} on Accord Medical Supplies`,
+                    url: shareUrl,
+                    dialogTitle: 'Share Product',
+                  })
+                } catch (error) {
+                  console.error('Error sharing:', error)
+                  // Fallback for Web/PWA
+                  if (navigator.share) {
+                    navigator.share({
+                      title: product.name,
+                      text: `Check out ${product.name} on Accord Medical Supplies`,
+                      url: shareUrl
+                    }).catch(() => {
+                      // Silently fail if share rejected
+                    })
+                  } else {
+                    // Final fallback: Copy to clipboard
+                    try {
+                      await navigator.clipboard.writeText(shareUrl)
+                      alert("Link copied to clipboard!")
+                    } catch (err) {
+                      window.open(shareUrl, '_blank')
+                    }
+                  }
+                }
+              }}
             >
               Share Product
             </Button>
