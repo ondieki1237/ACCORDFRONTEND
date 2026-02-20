@@ -135,16 +135,24 @@ class AuthService {
 
   async logout(): Promise<void> {
     if (this.refreshToken) {
-      await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refreshToken: this.refreshToken }),
-      })
+      try {
+        await fetch(`${API_BASE_URL}/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ refreshToken: this.refreshToken }),
+        })
+      } catch (error) {
+        console.error("Logout API call failed:", error);
+      }
     }
 
-    this.clearTokens()
+    // Clear everything locally
+    await this.clearTokens()
+    // Explicitly clear offline storage
+    const { offlineStorage } = await import("./offline-storage")
+    await offlineStorage.clearAllCache()
   }
 
 
@@ -155,7 +163,7 @@ class AuthService {
     }
   }
 
-  private clearTokens() {
+  private async clearTokens() {
     this.accessToken = null
     this.refreshToken = null
     this.currentUser = null

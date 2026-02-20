@@ -313,7 +313,7 @@ class ApiService {
     }
   }
 
-  async createTrail(trailData: Omit<Trail, "id">): Promise<Trail> {
+  async createTrail(trailData: Omit<Trail, "id">, skipOfflineSave = false): Promise<Trail> {
     try {
       const response = await this.makeRequest("/trails", {
         method: "POST",
@@ -324,7 +324,9 @@ class ApiService {
       console.warn('Failed to create trail online, saving offline:', error)
 
       // If offline, store in pending sync
-      await offlineStorage.addToPendingSync('trails', trailData)
+      if (!skipOfflineSave) {
+        await offlineStorage.addToPendingSync('trails', trailData)
+      }
 
       // Return a mock response with offline indicator
       return {
@@ -335,11 +337,13 @@ class ApiService {
     }
   }
 
-  async createVisit(visitData: Omit<Visit, "id">): Promise<Visit> {
+  async createVisit(visitData: Omit<Visit, "id">, skipOfflineSave = false): Promise<Visit> {
     // Check if we're actually online before attempting API call
     if (!navigator.onLine) {
       console.log('Device is offline, saving visit locally')
-      await offlineStorage.addToPendingSync('visits', visitData)
+      if (!skipOfflineSave) {
+        await offlineStorage.addToPendingSync('visits', visitData)
+      }
       return {
         ...visitData,
         id: `offline_visit_${Date.now()}`,
@@ -435,12 +439,15 @@ class ApiService {
     } catch (error: any) {
       console.error('Failed to create visit online:', error)
       // If we're here and online, it means the API call failed
-      // Don't save to offline storage - throw the error to show to user
+      if (!skipOfflineSave) {
+        console.log('Saving failed visit attempt locally')
+        await offlineStorage.addToPendingSync('visits', visitData)
+      }
       throw new Error(error.message || 'Failed to create visit. Please check your connection and try again.')
     }
   }
 
-  async createEngineerVisit(visitData: any): Promise<any> {
+  async createEngineerVisit(visitData: any, skipOfflineSave = false): Promise<any> {
     try {
       // Engineer visit data structure as used in the form
       return await this.makeRequest("/engineering-services", {
@@ -451,7 +458,9 @@ class ApiService {
       console.warn('Failed to create engineer visit online, saving offline:', error)
 
       // If offline, store in pending sync
-      await offlineStorage.addToPendingSync('engineerVisits', visitData)
+      if (!skipOfflineSave) {
+        await offlineStorage.addToPendingSync('engineerVisits', visitData)
+      }
 
       // Return a mock response with offline indicator
       const engineerVisit = {
@@ -546,9 +555,20 @@ class ApiService {
       })
 
       // Cache successful response
-      if (response && Array.isArray(response.data)) {
-        console.log('💾 Caching', response.data.length, 'leads')
-        await offlineStorage.cacheLeads(response.data)
+      let leadsToCache = []
+      if (response && response.success && response.data) {
+        if (Array.isArray(response.data.docs)) {
+          leadsToCache = response.data.docs
+        } else if (Array.isArray(response.data)) {
+          leadsToCache = response.data
+        }
+      } else if (response && Array.isArray(response.data)) {
+        leadsToCache = response.data
+      }
+
+      if (leadsToCache.length > 0) {
+        console.log('💾 Caching', leadsToCache.length, 'leads')
+        await offlineStorage.cacheLeads(leadsToCache)
       }
 
       return response
@@ -578,11 +598,13 @@ class ApiService {
     return this.makeRequest(`/leads/${leadId}`)
   }
 
-  async createLead(leadData: any): Promise<any> {
+  async createLead(leadData: any, skipOfflineSave = false): Promise<any> {
     // Check if we're actually online before attempting API call
     if (!navigator.onLine) {
       console.log('Device is offline, saving lead locally')
-      await offlineStorage.addToPendingSync('leads', leadData)
+      if (!skipOfflineSave) {
+        await offlineStorage.addToPendingSync('leads', leadData)
+      }
       return {
         ...leadData,
         id: `offline_lead_${Date.now()}`,
@@ -591,17 +613,34 @@ class ApiService {
     }
 
     try {
-      console.log('Creating lead online with payload:', leadData)
+      const payload = {
+        ...leadData,
+        // Always send budget as a string for backend compatibility
+        budget: typeof leadData.budget === 'string' ? leadData.budget : (leadData.budget?.amount ? `KSH ${leadData.budget.amount}` : ''),
+        // Add compatibility fields for different backend versions
+        equipmentName: leadData.equipmentName || leadData.equipmentOfInterest?.name,
+        productInterest: leadData.productInterest || leadData.equipmentOfInterest?.name,
+        // Ensure contactPerson is available as string if needed
+        contactPersonName: leadData.contactPerson?.name || leadData.contactName,
+        // Ensure facilityName is available as facility
+        facility: leadData.facilityName || leadData.facility,
+        // Compatibility for leadStatus vs status
+        status: leadData.leadStatus || leadData.status,
+        _clientTimestamp: new Date().toISOString()
+      };
+      console.log('🚀 POST /leads Payload:', payload)
       const response = await this.makeRequest("/leads", {
         method: "POST",
-        body: JSON.stringify(leadData),
+        body: JSON.stringify(payload),
       })
-      console.log('Lead created successfully:', response)
+      console.log('✅ POST /leads Success:', response)
       return response
     } catch (error: any) {
       console.error('Failed to create lead online:', error)
       // Save to offline storage on failure
-      await offlineStorage.addToPendingSync('leads', leadData)
+      if (!skipOfflineSave) {
+        await offlineStorage.addToPendingSync('leads', leadData)
+      }
       return {
         ...leadData,
         id: `offline_lead_${Date.now()}`,
@@ -611,9 +650,18 @@ class ApiService {
   }
 
   async updateLead(leadId: string, leadData: any): Promise<any> {
+    const payload = {
+      ...leadData,
+      // Add compatibility fields for different backend versions
+      equipmentName: leadData.equipmentName || leadData.equipmentOfInterest?.name,
+      productInterest: leadData.productInterest || leadData.equipmentOfInterest?.name,
+      contactPersonName: leadData.contactPersonName || leadData.contactPerson?.name || leadData.contactName,
+      facility: leadData.facilityName || leadData.facility,
+      status: leadData.leadStatus || leadData.status,
+    };
     return this.makeRequest(`/leads/${leadId}`, {
       method: "PUT",
-      body: JSON.stringify(leadData),
+      body: JSON.stringify(payload),
     })
   }
 
@@ -662,7 +710,7 @@ class ApiService {
     }
   }
 
-  async createFollowUpVisit(followUpData: any): Promise<any> {
+  async createFollowUpVisit(followUpData: any, skipOfflineSave = false): Promise<any> {
     try {
       return await this.makeRequest("/follow-up-visits", {
         method: "POST",
@@ -672,7 +720,9 @@ class ApiService {
       // If offline, queue the request
       if (!navigator.onLine || error.message.includes("NetworkError")) {
         console.log("Offline - queueing follow-up visit creation")
-        await offlineStorage.addToPendingSync('followUpVisits', followUpData)
+        if (!skipOfflineSave) {
+          await offlineStorage.addToPendingSync('followUpVisits', followUpData)
+        }
         return { success: true, offline: true, data: followUpData }
       }
       throw error
@@ -720,7 +770,7 @@ class ApiService {
     return this.makeRequest(`/machines/${id}`)
   }
 
-  async createMachine(machineData: any): Promise<any> {
+  async createMachine(machineData: any, skipOfflineSave = false): Promise<any> {
     try {
       return await this.makeRequest(`/machines`, {
         method: "POST",
@@ -729,7 +779,9 @@ class ApiService {
     } catch (error: any) {
       // if offline, you may queue; for now rethrow
       if (!navigator.onLine) {
-        await offlineStorage.addToPendingSync('engineerVisits', machineData)
+        if (!skipOfflineSave) {
+          await offlineStorage.addToPendingSync('engineerVisits', machineData)
+        }
         return { success: true, offline: true, data: machineData }
       }
       throw error

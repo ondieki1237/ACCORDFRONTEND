@@ -8,17 +8,17 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { 
-  ArrowLeft, 
-  Save, 
-  Building2, 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Package, 
-  DollarSign, 
-  Calendar, 
+import {
+  ArrowLeft,
+  Save,
+  Building2,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Package,
+  DollarSign,
+  Calendar,
   TrendingUp,
   AlertCircle,
   Clock
@@ -38,38 +38,30 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
     facilityName: initialData?.facilityName || "",
     facilityType: initialData?.facilityType || "",
     location: initialData?.location || "",
-    
+
     // Contact Person
     contactPersonName: initialData?.contactPersonName || "",
     contactPersonRole: initialData?.contactPersonRole || "",
     contactPhone: initialData?.contactPhone || "",
-    contactEmail: initialData?.contactEmail || "",
-    
+
     // Facility Details
     hospitalLevel: initialData?.hospitalLevel || "",
-    currentEquipment: initialData?.currentEquipment || "",
-    
+
     // Equipment of Interest
     equipmentOfInterest: initialData?.equipmentOfInterest || "",
-    equipmentCategory: initialData?.equipmentCategory || "",
-    quantity: initialData?.quantity || 1,
-    
+
     // Budget & Timeline
-    estimatedBudget: initialData?.estimatedBudget || "",
-    budgetCurrency: initialData?.budgetCurrency || "KES",
+    budget: initialData?.budget || "",
     expectedPurchaseDate: initialData?.expectedPurchaseDate || "",
-    urgency: initialData?.urgency || "",
-    
+
     // Competitor Analysis
     competitorAnalysis: initialData?.competitorAnalysis || "",
-    
+
     // Additional Information
-    painPoints: initialData?.painPoints || "",
-    notes: initialData?.notes || "",
     leadSource: initialData?.leadSource || "field-visit",
     leadStatus: initialData?.leadStatus || "new",
   })
-  
+
   const { toast } = useToast()
 
   const updateField = (field: keyof typeof formData, value: string | number) => {
@@ -95,10 +87,10 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
       return false
     }
 
-    if (!formData.contactPhone.trim() && !formData.contactEmail.trim()) {
+    if (!formData.contactPhone.trim()) {
       toast({
         title: "Missing Contact",
-        description: "Please provide either phone or email",
+        description: "Please provide a phone number",
         variant: "destructive",
       })
       return false
@@ -126,7 +118,7 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
 
       // Import API service dynamically
       const { apiService } = await import("@/lib/api")
-      
+
       const leadData = {
         facilityName: formData.facilityName.trim(),
         facilityType: formData.facilityType.trim(),
@@ -135,30 +127,18 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
           name: formData.contactPersonName.trim(),
           role: formData.contactPersonRole.trim(),
           phone: formData.contactPhone.trim(),
-          email: formData.contactEmail.trim(),
         },
         facilityDetails: {
           hospitalLevel: formData.hospitalLevel.trim(),
-          currentEquipment: formData.currentEquipment.trim(),
         },
         equipmentOfInterest: {
           name: formData.equipmentOfInterest.trim(),
-          category: formData.equipmentCategory.trim(),
-          quantity: formData.quantity,
         },
-        budget: {
-          amount: formData.estimatedBudget.trim(),
-          currency: formData.budgetCurrency,
-        },
+        budget: `KSH ${formData.budget.trim()}`,
         timeline: {
           expectedPurchaseDate: formData.expectedPurchaseDate,
-          urgency: formData.urgency.trim(),
         },
         competitorAnalysis: formData.competitorAnalysis.trim(),
-        additionalInfo: {
-          painPoints: formData.painPoints.trim(),
-          notes: formData.notes.trim(),
-        },
         leadSource: formData.leadSource,
         leadStatus: formData.leadStatus,
         createdAt: new Date().toISOString(),
@@ -315,20 +295,6 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
                   className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="currentEquipment" className="text-base font-semibold text-gray-700">
-                  Current Equipment
-                </Label>
-                <Textarea
-                  id="currentEquipment"
-                  placeholder="List existing medical equipment at the facility..."
-                  value={formData.currentEquipment}
-                  onChange={(e) => updateField("currentEquipment", e.target.value)}
-                  rows={3}
-                  className="rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
-                />
-              </div>
             </div>
 
             {/* Contact Person */}
@@ -367,36 +333,19 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="contactPhone" className="text-base font-semibold text-gray-700 flex items-center gap-1">
-                    <Phone className="h-4 w-4 text-[#00aeef]" />
-                    Phone Number *
-                  </Label>
-                  <Input
-                    id="contactPhone"
-                    type="tel"
-                    placeholder="+254712345678"
-                    value={formData.contactPhone}
-                    onChange={(e) => updateField("contactPhone", e.target.value)}
-                    className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="contactEmail" className="text-base font-semibold text-gray-700 flex items-center gap-1">
-                    <Mail className="h-4 w-4 text-[#00aeef]" />
-                    Email Address
-                  </Label>
-                  <Input
-                    id="contactEmail"
-                    type="email"
-                    placeholder="contact@facility.com"
-                    value={formData.contactEmail}
-                    onChange={(e) => updateField("contactEmail", e.target.value)}
-                    className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="contactPhone" className="text-base font-semibold text-gray-700 flex items-center gap-1">
+                  <Phone className="h-4 w-4 text-[#00aeef]" />
+                  Phone Number *
+                </Label>
+                <Input
+                  id="contactPhone"
+                  type="tel"
+                  placeholder="+254712345678"
+                  value={formData.contactPhone}
+                  onChange={(e) => updateField("contactPhone", e.target.value)}
+                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
+                />
               </div>
             </div>
 
@@ -420,59 +369,6 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
                   className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
                 />
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="equipmentCategory" className="text-base font-semibold text-gray-700">
-                    Category
-                  </Label>
-                  <Select
-                    value={formData.equipmentCategory}
-                    onValueChange={(value) => updateField("equipmentCategory", value)}
-                  >
-                    <SelectTrigger className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef]">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="imaging">Imaging Equipment</SelectItem>
-                      <SelectItem value="laboratory">Laboratory Equipment</SelectItem>
-                      <SelectItem value="surgical">Surgical Equipment</SelectItem>
-                      <SelectItem value="patient-monitoring">Patient Monitoring</SelectItem>
-                      <SelectItem value="diagnostic">Diagnostic Equipment</SelectItem>
-                      <SelectItem value="life-support">Life Support Systems</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="quantity" className="text-base font-semibold text-gray-700">
-                    Quantity Needed
-                  </Label>
-                  <Input
-                    id="quantity"
-                    type="number"
-                    min="1"
-                    value={formData.quantity}
-                    onChange={(e) => updateField("quantity", parseInt(e.target.value) || 1)}
-                    className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="painPoints" className="text-base font-semibold text-gray-700">
-                  Pain Points / Requirements
-                </Label>
-                <Textarea
-                  id="painPoints"
-                  placeholder="What problems are they trying to solve? What are their specific needs?"
-                  value={formData.painPoints}
-                  onChange={(e) => updateField("painPoints", e.target.value)}
-                  rows={3}
-                  className="rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
-                />
-              </div>
             </div>
 
             {/* Budget & Timeline */}
@@ -483,34 +379,19 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="estimatedBudget" className="text-base font-semibold text-gray-700">
-                    Estimated Budget
-                  </Label>
-                  <div className="flex gap-2">
-                    <Select
-                      value={formData.budgetCurrency}
-                      onValueChange={(value) => updateField("budgetCurrency", value)}
-                    >
-                      <SelectTrigger className="w-24 h-12 rounded-xl border-2 border-gray-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="KES">KES</SelectItem>
-                        <SelectItem value="USD">USD</SelectItem>
-                        <SelectItem value="EUR">EUR</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-2">
+                    <Label htmlFor="budget" className="text-base font-semibold text-gray-700">
+                      Estimated Budget (KSH)
+                    </Label>
                     <Input
-                      id="estimatedBudget"
+                      id="budget"
                       type="text"
                       placeholder="e.g. 5,000,000"
-                      value={formData.estimatedBudget}
-                      onChange={(e) => updateField("estimatedBudget", e.target.value)}
+                      value={formData.budget}
+                      onChange={(e) => updateField("budget", e.target.value)}
                       className="flex-1 h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
                     />
                   </div>
-                </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="expectedPurchaseDate" className="text-base font-semibold text-gray-700 flex items-center gap-1">
@@ -526,23 +407,6 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
                   />
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="urgency" className="text-base font-semibold text-gray-700 flex items-center gap-1">
-                  <AlertCircle className="h-4 w-4 text-[#00aeef]" />
-                  Urgency / Timeline
-                </Label>
-                <Input
-                  id="urgency"
-                  placeholder="e.g. 2 days, 2 weeks, 3 months, 1 year, ASAP"
-                  value={formData.urgency}
-                  onChange={(e) => updateField("urgency", e.target.value)}
-                  className="h-12 rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Specify when they need the equipment (e.g., "within 2 days", "3-6 months", "as soon as possible")
-                </p>
-              </div>
             </div>
 
             {/* Competitor Analysis */}
@@ -554,7 +418,7 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
 
               <div className="space-y-2">
                 <Label htmlFor="competitorAnalysis" className="text-base font-semibold text-gray-700">
-                  Competitor Information & Analysis
+                  Competitor Information & Analysis (Optional)
                 </Label>
                 <Textarea
                   id="competitorAnalysis"
@@ -625,20 +489,6 @@ export function LeadForm({ onBack, onSuccess, initialData }: LeadFormProps) {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes" className="text-base font-semibold text-gray-700">
-                  Additional Notes
-                </Label>
-                <Textarea
-                  id="notes"
-                  placeholder="Any other relevant information, follow-up actions, or observations..."
-                  value={formData.notes}
-                  onChange={(e) => updateField("notes", e.target.value)}
-                  rows={4}
-                  className="rounded-xl border-2 border-gray-200 focus:border-[#00aeef]"
-                />
               </div>
             </div>
 

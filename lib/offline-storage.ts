@@ -205,7 +205,7 @@ class OfflineStorageService {
   /**
    * Add item to pending sync queue
    */
-  async addToPendingSync(type: 'visits' | 'trails' | 'engineerVisits' | 'leads' | 'followUpVisits', data: any): Promise<void> {
+  async addToPendingSync(type: 'visits' | 'trails' | 'engineerVisits' | 'leads' | 'followUpVisits' | 'machines', data: any): Promise<void> {
     try {
       const pending = await this.getPendingSync()
       pending[type].push({
@@ -214,12 +214,12 @@ class OfflineStorageService {
         _createdOffline: true,
         _timestamp: Date.now()
       })
-      
+
       await Preferences.set({
         key: OfflineStorageService.KEYS.PENDING_SYNC,
         value: JSON.stringify(pending)
       })
-      
+
       await this.updateOfflineStatus()
       this.notifyDataUpdate()
     } catch (error) {
@@ -230,23 +230,28 @@ class OfflineStorageService {
   /**
    * Get pending sync items
    */
-  async getPendingSync(): Promise<{ visits: any[], trails: any[], engineerVisits: any[], leads: any[], followUpVisits: any[] }> {
+  async getPendingSync(): Promise<{ visits: any[], trails: any[], engineerVisits: any[], leads: any[], followUpVisits: any[], machines: any[] }> {
     try {
       const { value } = await Preferences.get({ key: OfflineStorageService.KEYS.PENDING_SYNC })
-      if (value) {
-        return JSON.parse(value)
+      const data = value ? JSON.parse(value) : { visits: [], trails: [], engineerVisits: [], leads: [], followUpVisits: [], machines: [] }
+      return {
+        visits: data.visits || [],
+        trails: data.trails || [],
+        engineerVisits: data.engineerVisits || [],
+        leads: data.leads || [],
+        followUpVisits: data.followUpVisits || [],
+        machines: data.machines || []
       }
-      return { visits: [], trails: [], engineerVisits: [], leads: [], followUpVisits: [] }
     } catch (error) {
       console.error('Error getting pending sync:', error)
-      return { visits: [], trails: [], engineerVisits: [], leads: [], followUpVisits: [] }
+      return { visits: [], trails: [], engineerVisits: [], leads: [], followUpVisits: [], machines: [] }
     }
   }
 
   /**
    * Clear pending sync items
    */
-  async clearPendingSync(type?: 'visits' | 'trails' | 'engineerVisits' | 'leads' | 'followUpVisits'): Promise<void> {
+  async clearPendingSync(type?: 'visits' | 'trails' | 'engineerVisits' | 'leads' | 'followUpVisits' | 'machines'): Promise<void> {
     try {
       if (type) {
         const pending = await this.getPendingSync()
@@ -258,7 +263,7 @@ class OfflineStorageService {
       } else {
         await Preferences.remove({ key: OfflineStorageService.KEYS.PENDING_SYNC })
       }
-      
+
       await this.updateOfflineStatus()
     } catch (error) {
       console.error('Error clearing pending sync:', error)
@@ -302,7 +307,7 @@ class OfflineStorageService {
     } catch (error) {
       console.error('Error getting offline status:', error)
     }
-    
+
     return {
       isOffline: typeof window !== 'undefined' ? !navigator.onLine : true,
       lastOnlineTime: Date.now(),
@@ -315,8 +320,13 @@ class OfflineStorageService {
    */
   private async updateOfflineStatus(): Promise<void> {
     const pending = await this.getPendingSync()
-    const pendingCount = pending.visits.length + pending.trails.length + pending.engineerVisits.length + pending.leads.length
-    
+    const pendingCount = (pending?.visits?.length || 0) +
+      (pending?.trails?.length || 0) +
+      (pending?.engineerVisits?.length || 0) +
+      (pending?.leads?.length || 0) +
+      (pending?.followUpVisits?.length || 0) +
+      (pending?.machines?.length || 0)
+
     const isOnline = typeof window !== 'undefined' && navigator.onLine
     const status: OfflineStatus = {
       isOffline: !isOnline,
@@ -338,7 +348,7 @@ class OfflineStorageService {
   private async handleOnline(): Promise<void> {
     console.log('📶 Connection restored - syncing offline data...')
     await this.updateOfflineStatus()
-    
+
     // Trigger sync (will be implemented by API service)
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('accord:online', {
@@ -380,7 +390,7 @@ class OfflineStorageService {
   /**
    * Subscribe to data updates
    */
-  subscribe(listener: (data: CachedData) => void): () => void {
+  onDataUpdate(listener: (data: CachedData) => void): () => void {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
   }
@@ -441,8 +451,33 @@ class OfflineStorageService {
       visitsCount: visits.length,
       trailsCount: trails.length,
       leadsCount: leads.length,
-      pendingCount: pending.visits.length + pending.trails.length + pending.engineerVisits.length + pending.leads.length,
+      pendingCount: (pending?.visits?.length || 0) +
+        (pending?.trails?.length || 0) +
+        (pending?.engineerVisits?.length || 0) +
+        (pending?.leads?.length || 0) +
+        (pending?.followUpVisits?.length || 0) +
+        (pending?.machines?.length || 0),
       lastSync: lastSync ? new Date(lastSync) : null
+    }
+  }
+
+  /**
+   * Remove a specific item from pending sync
+   */
+  async removeFromPending(type: 'visits' | 'trails' | 'engineerVisits' | 'leads' | 'followUpVisits' | 'machines', offlineId: string): Promise<void> {
+    try {
+      const pending = await this.getPendingSync()
+      pending[type] = pending[type].filter(item => item._offlineId !== offlineId)
+
+      await Preferences.set({
+        key: OfflineStorageService.KEYS.PENDING_SYNC,
+        value: JSON.stringify(pending)
+      })
+
+      await this.updateOfflineStatus()
+      this.notifyDataUpdate()
+    } catch (error) {
+      console.error('Error removing from pending sync:', error)
     }
   }
 
@@ -452,64 +487,49 @@ class OfflineStorageService {
       throw new Error('Cannot sync while offline')
     }
 
-    const apiService = await import('./api').then(m => m.apiService)
+    const { apiService } = await import('./api')
     const pending = await this.getPendingSync()
-    
-    // Sync visits
-    for (const visit of pending.visits) {
-      try {
-        await apiService.createVisit(visit)
-        // Remove from pending list after successful sync
-      } catch (error) {
-        console.error('Failed to sync visit:', error)
-        throw error
+    const types: ('visits' | 'trails' | 'engineerVisits' | 'leads' | 'followUpVisits' | 'machines')[] =
+      ['visits', 'trails', 'engineerVisits', 'leads', 'followUpVisits', 'machines']
+
+    let anySuccess = false
+
+    for (const type of types) {
+      const items = [...pending[type]]
+      if (items.length === 0) continue
+
+      console.log(`🔄 Syncing ${items.length} ${type}...`)
+
+      for (const item of items) {
+        try {
+          // Attempt to create the item online
+          // We set skipOfflineSave to true to avoid circular loops
+          let response: any
+
+          if (type === 'visits') response = await apiService.createVisit(item, true)
+          else if (type === 'trails') response = await apiService.createTrail(item, true)
+          else if (type === 'engineerVisits') response = await apiService.createEngineerVisit(item, true)
+          else if (type === 'leads') response = await apiService.createLead(item, true)
+          else if (type === 'followUpVisits') response = await apiService.createFollowUpVisit(item, true)
+          else if (type === 'machines') response = await apiService.createMachine(item, true)
+
+          // If successful, remove from pending
+          await this.removeFromPending(type, item._offlineId)
+          anySuccess = true
+
+          console.log(`✅ Successfully synced ${type} item:`, item._offlineId)
+        } catch (error) {
+          console.error(`❌ Failed to sync ${type} item ${item._offlineId}:`, error)
+          // Continue with next item instead of stopping the whole process
+        }
       }
     }
 
-    // Sync trails  
-    for (const trail of pending.trails) {
-      try {
-        await apiService.createTrail(trail)
-        // Remove from pending list after successful sync
-      } catch (error) {
-        console.error('Failed to sync trail:', error)
-        throw error
-      }
+    if (anySuccess) {
+      // Update last sync time
+      await this.updateLastSyncTime()
+      // Note: addToPendingSync/removeFromPending already call updateOfflineStatus and notifyDataUpdate
     }
-
-    // Sync engineer visits
-    for (const visit of pending.engineerVisits) {
-      try {
-        await apiService.createEngineerVisit(visit)
-        // Remove from pending list after successful sync
-      } catch (error) {
-        console.error('Failed to sync engineer visit:', error)
-        throw error
-      }
-    }
-
-    // Sync leads
-    for (const lead of pending.leads) {
-      try {
-        await apiService.createLead(lead)
-        // Remove from pending list after successful sync
-      } catch (error) {
-        console.error('Failed to sync lead:', error)
-        throw error
-      }
-    }
-
-    // Clear all pending data after successful sync
-    await Preferences.set({
-      key: OfflineStorageService.KEYS.PENDING_SYNC,
-      value: JSON.stringify({ visits: [], trails: [], engineerVisits: [], leads: [] })
-    })
-
-    // Update last sync time
-    await Preferences.set({
-      key: OfflineStorageService.KEYS.LAST_SYNC,
-      value: Date.now().toString()
-    })
   }
 }
 

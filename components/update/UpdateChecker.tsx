@@ -15,7 +15,7 @@ type UpdateInfo = {
 import { UPDATE_CHECK_URL, APK_DOWNLOAD_URL } from "@/lib/config"
 
 const CHECK_ENDPOINT = UPDATE_CHECK_URL
-const APP_VERSION = "1.2.3" // Current app version
+const APP_VERSION = "1.2.4" // Current app version
 const APPLIED_VERSION_KEY = "accord_applied_update_version"
 const DISMISSED_VERSION_KEY = "accord_dismissed_update_version"
 const PENDING_UPDATE_KEY = "accord_pending_update"
@@ -76,7 +76,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
     return getPendingUpdate() !== null
   })
   const [isUpdating, setIsUpdating] = useState(false)
-  
+
   const isCheckingRef = useRef(false)
   const hasInitializedRef = useRef(false)
 
@@ -117,10 +117,10 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
         const res = await fetch(CHECK_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            currentVersion, 
+          body: JSON.stringify({
+            currentVersion,
             platform,
-            role 
+            role
           }),
           cache: "no-store",
         })
@@ -146,7 +146,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
 
         if (hasUpdate) {
           const version = latestVersion
-          
+
           // Check if this version was already applied
           const appliedVersion = getAppliedVersion()
           if (appliedVersion === version) {
@@ -207,7 +207,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
    */
   async function handleDownloadAndInstall() {
     if (!update) return
-    
+
     setIsUpdating(true)
 
     try {
@@ -217,7 +217,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
       // Use Capacitor Browser to open the download URL
       // This triggers Android Download Manager → APK Installer
       const { Browser } = await import("@capacitor/browser")
-      
+
       await Browser.open({
         url: downloadUrl,
       })
@@ -229,7 +229,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
 
       // Clear pending update
       setPendingUpdate(null)
-      
+
       // Close the modal after a short delay
       setTimeout(() => {
         setShow(false)
@@ -238,7 +238,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
 
     } catch (err) {
       console.error("❌ Failed to open download:", err)
-      
+
       // Fallback: try opening in a new window
       try {
         window.open(update.downloadUrl || APK_DOWNLOAD_URL, "_blank")
@@ -258,12 +258,12 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
     if (update?.mandatory || update?.forceUpdate) {
       return // Cannot dismiss mandatory updates
     }
-    
+
     // Remember dismissed version for this session
     if (update?.latestVersion || update?.versionName) {
       setDismissedVersion(update.latestVersion || update.versionName || "")
     }
-    
+
     setPendingUpdate(null)
     setShow(false)
   }
@@ -272,9 +272,9 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
   const version = update.latestVersion || update.versionName
 
   const modalContent = (
-    <div 
+    <div
       id="update-checker-modal"
-      style={{ 
+      style={{
         position: 'fixed',
         inset: 0,
         zIndex: 9999,
@@ -282,15 +282,15 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
       }}
     >
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm" 
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
         onClick={() => !isMandatory && !isUpdating && handleDismiss()}
       />
-      
+
       {/* Modal */}
       <div className="fixed inset-0 flex items-center justify-center p-4 pointer-events-none">
         <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm pointer-events-auto">
-          
+
           {/* Icon */}
           <div className="flex justify-center mb-4">
             <div className="w-16 h-16 rounded-full bg-[#00aeef]/10 flex items-center justify-center">
@@ -311,7 +311,7 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
           <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
             {isUpdating ? "Opening Download..." : "Update Available"}
           </h3>
-          
+
           {/* Version */}
           {version && (
             <p className="text-sm text-gray-500 text-center mb-4">
@@ -385,6 +385,6 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
   if (typeof window !== 'undefined') {
     return createPortal(modalContent, document.body)
   }
-  
+
   return modalContent
 }

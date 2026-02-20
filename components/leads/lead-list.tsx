@@ -5,15 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { 
-  TrendingUp, 
-  Plus, 
-  Search, 
-  Building2, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Package, 
+import {
+  TrendingUp,
+  Plus,
+  Search,
+  Building2,
+  Phone,
+  Mail,
+  MapPin,
+  Package,
   DollarSign,
   Calendar,
   AlertCircle,
@@ -31,6 +31,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { authService } from "@/lib/auth"
+import { offlineStorage } from "@/lib/offline-storage"
+import { Trash2 } from "lucide-react"
 
 interface Lead {
   id: string
@@ -48,10 +51,7 @@ interface Lead {
     category: string
     quantity: number
   }
-  budget: {
-    amount: string
-    currency: string
-  }
+  budget: string // e.g. 'KSH 10000'
   timeline: {
     expectedPurchaseDate: string
     urgency: string
@@ -78,6 +78,35 @@ export function LeadList() {
 
   useEffect(() => {
     loadLeads()
+
+    // Debounce logic for offline storage updates
+    let debounceTimeout: NodeJS.Timeout | null = null
+    let lastUpdate = 0
+    const DEBOUNCE_INTERVAL = 30000 // 30 seconds
+
+    const debouncedLoadLeads = () => {
+      const now = Date.now()
+      if (now - lastUpdate > DEBOUNCE_INTERVAL) {
+        lastUpdate = now
+        loadLeads()
+      } else {
+        if (debounceTimeout) clearTimeout(debounceTimeout)
+        debounceTimeout = setTimeout(() => {
+          lastUpdate = Date.now()
+          loadLeads()
+        }, DEBOUNCE_INTERVAL - (now - lastUpdate))
+      }
+    }
+
+    // Subscribe to offline storage updates
+    const unsubscribe = offlineStorage.onDataUpdate(() => {
+      debouncedLoadLeads()
+    })
+
+    return () => {
+      unsubscribe()
+      if (debounceTimeout) clearTimeout(debounceTimeout)
+    }
   }, [])
 
   useEffect(() => {
@@ -88,52 +117,102 @@ export function LeadList() {
     try {
       setIsLoading(true)
       const { apiService } = await import("@/lib/api")
-      const response = await apiService.getLeads()
-      
+      const user = authService.getCurrentUserSync() as any
+      const filters: any = {}
+      if (user?.id) {
+        filters.createdBy = user.id
+        console.log('👤 Fetching leads created by:', user.id)
+      } else if (user?._id) {
+        filters.createdBy = user._id
+        console.log('👤 Fetching leads created by (_id):', user._id)
+      }
+
+      const response = await apiService.getLeads(1, 100, filters)
+
       console.log('Leads API Response:', response)
-      console.log('Response type:', typeof response)
-      console.log('Response.data:', response.data)
-      console.log('Is response.data array?', Array.isArray(response.data))
-      
+
       // Handle different response structures
-      let leadsData: Lead[] = []
-      
+      let leadsData = []
       if (response.success && response.data) {
         if (Array.isArray(response.data.docs)) {
-          // Paginated response: { success: true, data: { docs: [...], totalDocs, page, ... } }
           leadsData = response.data.docs
-          console.log('📄 Paginated response - Total:', response.data.totalDocs, 'Page:', response.data.page)
         } else if (Array.isArray(response.data)) {
-          // Array response: { success: true, data: [...] }
           leadsData = response.data
+        } else if (response.data.leads && Array.isArray(response.data.leads)) {
+          leadsData = response.data.leads
         }
-      } else if (Array.isArray(response.data)) {
-        // Just data array: { data: [...] }
+      } else if (response.data && Array.isArray(response.data)) {
         leadsData = response.data
+      } else if (response.leads && Array.isArray(response.leads)) {
+        leadsData = response.leads
       } else if (Array.isArray(response)) {
-        // Direct array response: [...]
         leadsData = response
-      } else {
-        console.warn('Unexpected response structure:', response)
-        leadsData = []
       }
-      
-  console.log('✅ Final leadsData:', leadsData)
-  console.log('📊 LeadsData length:', leadsData.length)
 
-  // Normalize id field (API may return _id)
-  const normalizedLeads = leadsData.map((l: any) => ({ ...l, id: l.id || l._id }))
-  setLeads(normalizedLeads)
+      console.log('Extracted online leads count:', leadsData.length)
+
+      // Normalize id field (API may return _id)
+      const normalizedOnlineLeads = leadsData.map((l: any) => ({ ...l, id: l.id || l._id }))
+
+      // Merge with offline leads
+      let pendingSync: any = { leads: [] }
+      try {
+        pendingSync = await offlineStorage.getPendingSync()
+      } catch (e) {
+        console.error('Failed to get pending sync:', e)
+      }
+
+      const offlineLeadsArr = Array.isArray(pendingSync?.leads) ? pendingSync.leads : []
+      console.log('Pending sync leads count:', offlineLeadsArr.length)
+
+      const offlineLeads = offlineLeadsArr.map((l: any) => ({
+        ...l,
+        id: l.id || l._offlineId,
+        _createdOffline: true
+      }))
+
+      const allLeads = [...offlineLeads, ...normalizedOnlineLeads]
+      console.log('🏁 Final combined leads count:', allLeads.length)
+      if (allLeads.length > 0) {
+        console.table(allLeads.map(l => ({
+          id: l.id,
+          facility: l.facilityName,
+          status: l.leadStatus,
+          offline: !!l._isOffline || !!l._createdOffline
+        })))
+      }
+      setLeads(allLeads)
     } catch (error) {
       console.error("Failed to load leads:", error)
-      setLeads([]) // Set empty array on error
+
+      // If offline, try to get cached leads and merge with pending
+      const cachedLeads = await offlineStorage.getCachedLeads()
+      const pendingSync = await offlineStorage.getPendingSync()
+      const offlineLeads = pendingSync.leads.map((l: any) => ({
+        ...l,
+        id: l.id || l._offlineId,
+        _createdOffline: true
+      }))
+
+      setLeads([...offlineLeads, ...cachedLeads.map((l: any) => ({ ...l, id: l.id || l._id }))])
+
       toast({
-        title: "Failed to load leads",
-        description: error instanceof Error ? error.message : "Please try again",
-        variant: "destructive",
+        title: "Showing offline data",
+        description: "Could not connect to server. Displaying local data.",
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleDeletePendingLead = async (offlineId: string) => {
+    if (confirm("Are you sure you want to discard this unsynced lead? It cannot be recovered.")) {
+      await offlineStorage.removeFromPending('leads', offlineId)
+      toast({
+        title: "Lead Discarded",
+        description: "The unsynced lead has been removed.",
+      })
+      loadLeads()
     }
   }
 
@@ -166,7 +245,7 @@ export function LeadList() {
     try {
       const { apiService } = await import("@/lib/api")
       await apiService.updateLead(leadId, { leadStatus: newStatus })
-      setLeads(leads.map(lead => 
+      setLeads(leads.map(lead =>
         lead.id === leadId ? { ...lead, leadStatus: newStatus } : lead
       ))
       toast({
@@ -191,9 +270,9 @@ export function LeadList() {
     const prevFiltered = [...filteredLeads]
 
     // optimistic update
-  const leadIdOrKey = selectedLeadForStatus.id || (selectedLeadForStatus as any)._id
-  setLeads((curr) => curr.map(l => (l.id === leadIdOrKey || (l as any)._id === leadIdOrKey) ? { ...l, leadStatus: statusCandidate } : l))
-  setFilteredLeads((curr) => curr.map(l => (l.id === leadIdOrKey || (l as any)._id === leadIdOrKey) ? { ...l, leadStatus: statusCandidate } : l))
+    const leadIdOrKey = selectedLeadForStatus.id || (selectedLeadForStatus as any)._id
+    setLeads((curr) => curr.map(l => (l.id === leadIdOrKey || (l as any)._id === leadIdOrKey) ? { ...l, leadStatus: statusCandidate } : l))
+    setFilteredLeads((curr) => curr.map(l => (l.id === leadIdOrKey || (l as any)._id === leadIdOrKey) ? { ...l, leadStatus: statusCandidate } : l))
 
     try {
       const { apiService } = await import("@/lib/api")
@@ -218,11 +297,11 @@ export function LeadList() {
       const updatedLead = response?.data || response
 
       // reconcile UI with server response
-  const serverId = updatedLead.id || updatedLead._id || (selectedLeadForStatus as any).id
-  setLeads((curr) => curr.map(l => (l.id === serverId || (l as any)._id === serverId) ? { ...l, ...updatedLead, id: serverId } : l))
-  setFilteredLeads((curr) => curr.map(l => (l.id === serverId || (l as any)._id === serverId) ? { ...l, ...updatedLead, id: serverId } : l))
+      const serverId = updatedLead.id || updatedLead._id || (selectedLeadForStatus as any).id
+      setLeads((curr) => curr.map(l => (l.id === serverId || (l as any)._id === serverId) ? { ...l, ...updatedLead, id: serverId } : l))
+      setFilteredLeads((curr) => curr.map(l => (l.id === serverId || (l as any)._id === serverId) ? { ...l, ...updatedLead, id: serverId } : l))
 
-      toast({ title: "Status Updated", description: `Lead status changed to ${statusCandidate.replace("-"," ")}` })
+      toast({ title: "Status Updated", description: `Lead status changed to ${statusCandidate.replace("-", " ")}` })
     } catch (error: any) {
       console.error("Failed to perform status update:", error)
       // rollback
@@ -369,7 +448,7 @@ export function LeadList() {
                       <p className="text-sm text-muted-foreground">
                         Changing status for <strong>{selectedLeadForStatus.facilityName}</strong>
                       </p>
-                      <p className="text-sm">Current: <strong>{selectedLeadForStatus.leadStatus.replace("-"," ")}</strong></p>
+                      <p className="text-sm">Current: <strong>{selectedLeadForStatus.leadStatus.replace("-", " ")}</strong></p>
                     </div>
                   ) : (
                     <p className="text-sm">Select a status and provide an optional note.</p>
@@ -397,7 +476,7 @@ export function LeadList() {
                       disabled={isUpdating}
                       className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] text-white"
                     >
-                      {isUpdating ? 'Updating...' : `Set status: ${statusCandidate.replace("-"," ")}`}
+                      {isUpdating ? 'Updating...' : `Set status: ${statusCandidate.replace("-", " ")}`}
                     </Button>
                   </div>
                 </DialogFooter>
@@ -411,248 +490,280 @@ export function LeadList() {
                 <p className="text-xs text-green-600 mt-1">Qualified</p>
               </CardContent>
             </Card>
-            <Card className="rounded-xl bg-orange-50 border-0">
-              <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold text-orange-700">
-                  {Array.isArray(leads) ? leads.filter((l) => l.timeline?.urgency === "high").length : 0}
-                </p>
-                <p className="text-xs text-orange-600 mt-1">High Priority</p>
-              </CardContent>
-            </Card>
             <Card className="rounded-xl bg-purple-50 border-0">
               <CardContent className="p-4 text-center">
                 <p className="text-2xl font-bold text-purple-700">
                   {Array.isArray(leads) ? leads.filter((l) => l.leadStatus === "new").length : 0}
                 </p>
-                <p className="text-xs text-purple-600 mt-1">New</p>
+                <p className="text-xs text-purple-600 mt-1">New Leads</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Leads List */}
-          {isLoading ? (
-            <div className="text-center py-12">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#00aeef] border-r-transparent"></div>
-              <p className="text-gray-500 mt-4">Loading leads...</p>
-            </div>
-          ) : filteredLeads.length === 0 ? (
-            <div className="text-center py-12">
-              <TrendingUp className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">
-                {searchQuery ? "No leads found" : "No leads yet"}
-              </h3>
-              <p className="text-gray-500 mb-6">
-                {searchQuery
-                  ? "Try adjusting your search query"
-                  : "Start by creating your first lead"}
-              </p>
-              {!searchQuery && (
-                <Button
-                  onClick={() => setView("form")}
-                  className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] text-white rounded-xl"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create First Lead
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredLeads.map((lead) => (
-                <Card
-                  key={lead.id}
-                  className="rounded-2xl border-2 border-gray-200 hover:border-[#00aeef] transition-all"
-                >
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between mb-3">
-                      <div 
-                        className="flex-1 cursor-pointer"
-                        onClick={() => {
-                          setSelectedLead(lead)
-                          setView("form")
-                        }}
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <Building2 className="h-5 w-5 text-[#00aeef]" />
-                          <h3 className="font-bold text-lg text-gray-800">
-                            {lead.facilityName}
-                          </h3>
-                        </div>
-                        <p className="text-sm text-gray-600 flex items-center gap-1 mb-1">
-                          <MapPin className="h-4 w-4" />
-                          {lead.location}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="rounded-xl"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Status
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedLeadForStatus(lead)
-                                setStatusCandidate("new")
-                                setStatusChangeNote("")
-                                setShowStatusDialog(true)
-                              }}
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="size-2 rounded-full bg-blue-500" />
-                                New
-                              </div>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedLeadForStatus(lead)
-                                setStatusCandidate("contacted")
-                                setStatusChangeNote("")
-                                setShowStatusDialog(true)
-                              }}
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="size-2 rounded-full bg-purple-500" />
-                                Contacted
-                              </div>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedLeadForStatus(lead)
-                                setStatusCandidate("qualified")
-                                setStatusChangeNote("")
-                                setShowStatusDialog(true)
-                              }}
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="size-2 rounded-full bg-cyan-500" />
-                                Qualified
-                              </div>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedLeadForStatus(lead)
-                                setStatusCandidate("proposal-sent")
-                                setStatusChangeNote("")
-                                setShowStatusDialog(true)
-                              }}
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="size-2 rounded-full bg-orange-500" />
-                                Proposal Sent
-                              </div>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedLeadForStatus(lead)
-                                setStatusCandidate("negotiation")
-                                setStatusChangeNote("")
-                                setShowStatusDialog(true)
-                              }}
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="size-2 rounded-full bg-yellow-500" />
-                                Negotiation
-                              </div>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedLeadForStatus(lead)
-                                setStatusCandidate("won")
-                                setStatusChangeNote("")
-                                setShowStatusDialog(true)
-                              }}
-                              className="text-green-600 font-medium"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="size-2 rounded-full bg-green-500" />
-                                Won
-                              </div>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedLeadForStatus(lead)
-                                setStatusCandidate("lost")
-                                setStatusChangeNote("")
-                                setShowStatusDialog(true)
-                              }}
-                              className="text-red-600"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="size-2 rounded-full bg-red-500" />
-                                Lost
-                              </div>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        <Button
-                          size="sm"
-                          variant="ghost"
+          {
+            isLoading ? (
+              <div className="text-center py-12">
+                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-[#00aeef] border-r-transparent"></div>
+                <p className="text-gray-500 mt-4">Loading leads...</p>
+              </div>
+            ) : filteredLeads.length === 0 ? (
+              <div className="text-center py-12">
+                <TrendingUp className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                  {searchQuery ? "No leads found" : "No leads yet"}
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  {searchQuery
+                    ? "Try adjusting your search query"
+                    : "Start by creating your first lead"}
+                </p>
+                {!searchQuery && (
+                  <Button
+                    onClick={() => setView("form")}
+                    className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] text-white rounded-xl"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create First Lead
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredLeads.map((lead: any) => (
+                  <Card
+                    key={lead.id || lead._offlineId}
+                    className={`rounded-2xl border-2 transition-all ${lead._createdOffline
+                      ? "border-amber-200 bg-amber-50/30"
+                      : "border-gray-200 hover:border-[#00aeef]"
+                      }`}
+                  >
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between mb-3">
+                        <div
+                          className="flex-1 cursor-pointer"
                           onClick={() => {
-                            setSelectedLead(lead)
-                            setView("form")
+                            if (!lead._createdOffline) {
+                              setSelectedLead(lead)
+                              setView("form")
+                            } else {
+                              toast({
+                                title: "Pending Sync",
+                                description: "This lead is waiting to be synced. You'll be able to edit it once it's online.",
+                              })
+                            }
                           }}
                         >
-                          <ChevronRight className="h-5 w-5 text-gray-400" />
-                        </Button>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Building2 className="h-5 w-5 text-[#00aeef]" />
+                            <h3 className="font-bold text-lg text-gray-800">
+                              {lead.facilityName}
+                              {lead._createdOffline && (
+                                <Badge variant="outline" className="ml-2 bg-amber-100 text-amber-700 border-amber-200">
+                                  PENDING SYNC
+                                </Badge>
+                              )}
+                            </h3>
+                          </div>
+                          <p className="text-sm text-gray-600 flex items-center gap-1 mb-1">
+                            <MapPin className="h-4 w-4" />
+                            {lead.location}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {lead._createdOffline ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-xl"
+                              onClick={() => handleDeletePendingLead(lead._offlineId)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Discard
+                            </Button>
+                          ) : (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-xl"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Status
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedLeadForStatus(lead)
+                                    setStatusCandidate("new")
+                                    setStatusChangeNote("")
+                                    setShowStatusDialog(true)
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className="size-2 rounded-full bg-blue-500" />
+                                    New
+                                  </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedLeadForStatus(lead)
+                                    setStatusCandidate("contacted")
+                                    setStatusChangeNote("")
+                                    setShowStatusDialog(true)
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className="size-2 rounded-full bg-purple-500" />
+                                    Contacted
+                                  </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedLeadForStatus(lead)
+                                    setStatusCandidate("qualified")
+                                    setStatusChangeNote("")
+                                    setShowStatusDialog(true)
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className="size-2 rounded-full bg-cyan-500" />
+                                    Qualified
+                                  </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedLeadForStatus(lead)
+                                    setStatusCandidate("proposal-sent")
+                                    setStatusChangeNote("")
+                                    setShowStatusDialog(true)
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className="size-2 rounded-full bg-orange-500" />
+                                    Proposal Sent
+                                  </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedLeadForStatus(lead)
+                                    setStatusCandidate("negotiation")
+                                    setStatusChangeNote("")
+                                    setShowStatusDialog(true)
+                                  }}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className="size-2 rounded-full bg-yellow-500" />
+                                    Negotiation
+                                  </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedLeadForStatus(lead)
+                                    setStatusCandidate("won")
+                                    setStatusChangeNote("")
+                                    setShowStatusDialog(true)
+                                  }}
+                                  className="text-green-600 font-medium"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className="size-2 rounded-full bg-green-500" />
+                                    Won
+                                  </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedLeadForStatus(lead)
+                                    setStatusCandidate("lost")
+                                    setStatusChangeNote("")
+                                    setShowStatusDialog(true)
+                                  }}
+                                  className="text-red-600"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <div className="size-2 rounded-full bg-red-500" />
+                                    Lost
+                                  </div>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              if (!lead._createdOffline) {
+                                setSelectedLead(lead)
+                                setView("form")
+                              }
+                            }}
+                          >
+                            <ChevronRight className={`h-5 w-5 ${lead._createdOffline ? 'text-gray-300' : 'text-gray-400'}`} />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Package className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">{lead.equipmentOfInterest.name}</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Package className="h-4 w-4 text-gray-500" />
+                          <span className="text-gray-600">
+                            {lead.equipmentOfInterest?.name || lead.equipmentOfInterest || lead.productInterest || "TBD"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <DollarSign className="h-4 w-4 text-gray-500" />
+                          <span className="text-gray-600">
+                            {lead.budget || "TBD"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="h-4 w-4 text-gray-500" />
+                          <span className="text-gray-600">
+                            {typeof lead.contactPerson === 'string' ? lead.contactPerson : (lead.contactPerson?.name || lead.contactPersonName || "TBD")}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="h-4 w-4 text-gray-500" />
+                          <span className="text-gray-600">
+                            {formatDate(lead.timeline?.expectedPurchaseDate || lead.expectedPurchaseDate || lead.timeline)}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <DollarSign className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">
-                          {lead.budget.currency} {lead.budget.amount || "TBD"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">{lead.contactPerson.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="h-4 w-4 text-gray-500" />
-                        <span className="text-gray-600">
-                          {formatDate(lead.timeline.expectedPurchaseDate)}
-                        </span>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className={`rounded-lg ${getStatusColor(lead.leadStatus)}`}>
-                        {lead.leadStatus.replace("-", " ").toUpperCase()}
-                      </Badge>
-                      <Badge className={`rounded-lg ${getUrgencyColor(lead.timeline.urgency)}`}>
-                        {lead.timeline.urgency.toUpperCase()} PRIORITY
-                      </Badge>
-                      {lead.facilityType && (
-                        <Badge variant="outline" className="rounded-lg">
-                          {lead.facilityType}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge className={`rounded-lg ${getStatusColor(lead.leadStatus || lead.status)}`}>
+                          {(lead.leadStatus || lead.status || "new").replace("-", " ").toUpperCase()}
                         </Badge>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                        {lead._createdOffline && (
+                          <Badge variant="outline" className="rounded-lg border-amber-300 text-amber-700">
+                            UNSYNCED
+                          </Badge>
+                        )}
+                        {(lead.timeline?.urgency || lead.urgency) && (
+                          <Badge className={`rounded-lg ${getUrgencyColor(lead.timeline?.urgency || lead.urgency)}`}>
+                            {(lead.timeline?.urgency || lead.urgency).toUpperCase()} PRIORITY
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="rounded-lg">
+                          {lead.facilityType || lead.clientType || "Facility"}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )
+          }
         </CardContent>
       </Card>
     </div>
