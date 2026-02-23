@@ -33,8 +33,8 @@ const defaultSections: ReportSection[] = [
     color: "from-blue-500 to-cyan-500"
   },
   {
-    id: "leads",
-    title: "New Leads",
+    id: "top-product",
+    title: "Top Demanded Product in your region",
     content: "",
     isRequired: false,
     icon: Target,
@@ -47,6 +47,14 @@ const defaultSections: ReportSection[] = [
     isRequired: false,
     icon: AlertCircle,
     color: "from-red-500 to-rose-500"
+  },
+  {
+    id: "improvements",
+    title: "What you would love to be improved the coming week",
+    content: "",
+    isRequired: false,
+    icon: Edit3,
+    color: "from-green-500 to-blue-500"
   }
 ];
 
