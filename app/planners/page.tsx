@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, MapPin, DollarSign, Users as UsersIcon, Eye } from "lucide-react";
+import { EditPlannerModal } from "@/components/planners/edit-planner-modal";
 import { authService } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,6 +27,12 @@ interface Planner {
     notes?: string;
     createdAt: string;
     updatedAt: string;
+        approval?: {
+            status: "pending" | "approved" | "disapproved";
+            reviewer?: string;
+            reviewedAt?: string;
+            note?: string;
+        };
 }
 
 export default function PlannersPage() {
@@ -33,6 +40,7 @@ export default function PlannersPage() {
     const [loading, setLoading] = useState(true);
     const [selectedPlanner, setSelectedPlanner] = useState<Planner | null>(null);
     const [apiError, setApiError] = useState(false);
+    const [editOpen, setEditOpen] = useState(false);
     const router = useRouter();
     const { toast } = useToast();
 
@@ -130,7 +138,70 @@ export default function PlannersPage() {
                                     <h1 className="text-2xl md:text-3xl font-bold text-white">
                                         Planner Details
                                     </h1>
+                                        {selectedPlanner.approval && (
+                                            <Badge className={`ml-3 ${
+                                                selectedPlanner.approval.status === "approved" ? "bg-green-100 text-green-700" :
+                                                selectedPlanner.approval.status === "disapproved" ? "bg-red-100 text-red-700" :
+                                                "bg-yellow-100 text-yellow-700"
+                                            }`}>
+                                                {selectedPlanner.approval.status.charAt(0).toUpperCase() + selectedPlanner.approval.status.slice(1)}
+                                            </Badge>
+                                        )}
                                 </div>
+                                    {/* Edit/Delete Buttons if not reviewed */}
+                                    {selectedPlanner.approval?.status === "pending" && (
+                                        <div className="flex gap-2 mb-2 ml-14">
+                                            <Button
+                                                variant="outline"
+                                                className="border-blue-400 text-blue-700 hover:bg-blue-50"
+                                                onClick={() => setEditOpen(true)}
+                                            >
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                variant="destructive"
+                                                onClick={async () => {
+                                                    if (confirm("Are you sure you want to delete this planner? This cannot be undone.")) {
+                                                        try {
+                                                            const { apiService } = await import("@/lib/api");
+                                                            await apiService.makeRequest(`/planner/${selectedPlanner._id}`, { method: "DELETE" });
+                                                            setSelectedPlanner(null);
+                                                            fetchPlanners();
+                                                        } catch (err) {
+                                                            alert("Failed to delete planner. Please try again.");
+                                                        }
+                                                    }
+                                                }}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    {/* Edit Planner Modal */}
+                                    {selectedPlanner && (
+                                        <EditPlannerModal
+                                            open={editOpen}
+                                            onClose={() => setEditOpen(false)}
+                                            planner={selectedPlanner}
+                                            onSave={async (updated) => {
+                                                try {
+                                                    const { apiService } = await import("@/lib/api");
+                                                    await apiService.makeRequest(`/planner/${selectedPlanner._id}`, {
+                                                        method: "PUT",
+                                                        body: JSON.stringify(updated),
+                                                        headers: { "Content-Type": "application/json" },
+                                                    });
+                                                    toast({ title: "Planner updated" });
+                                                    setEditOpen(false);
+                                                    setSelectedPlanner(null);
+                                                    fetchPlanners();
+                                                } catch (err: any) {
+                                                    toast({ title: "Update failed", description: err.message || "Could not update planner.", variant: "destructive" });
+                                                }
+                                            }}
+                                        />
+                                    )}
                                 <p className="text-white/90 text-sm md:text-base ml-14">
                                     Week of {new Date(selectedPlanner.weekCreatedAt).toLocaleDateString()}
                                 </p>
