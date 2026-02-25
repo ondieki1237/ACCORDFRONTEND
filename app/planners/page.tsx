@@ -77,7 +77,7 @@ export default function PlannersPage() {
                 const data = await res.json();
                 setPlanners(Array.isArray(data.data) ? data.data : []);
             }
-                    const [approvalStatus, setApprovalStatus] = useState<PlannerApproval | null>(null);
+            // ...existing code...
             if (err.message.includes("fetch")) {
                 setApiError(true);
                 toast({
