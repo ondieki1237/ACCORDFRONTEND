@@ -27,12 +27,12 @@ interface Planner {
     notes?: string;
     createdAt: string;
     updatedAt: string;
-        approval?: {
-            status: "pending" | "approved" | "disapproved";
-            reviewer?: string;
-            reviewedAt?: string;
-            note?: string;
-        };
+    approval?: {
+        status: "pending" | "approved" | "disapproved";
+        reviewer?: string;
+        reviewedAt?: string;
+        note?: string;
+    };
 }
 
 export default function PlannersPage() {
@@ -41,6 +41,7 @@ export default function PlannersPage() {
     const [selectedPlanner, setSelectedPlanner] = useState<Planner | null>(null);
     const [apiError, setApiError] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
+    const [approvalStatus, setApprovalStatus] = useState<PlannerApproval | null>(null);
     const router = useRouter();
     const { toast } = useToast();
 
@@ -76,7 +77,7 @@ export default function PlannersPage() {
                 const data = await res.json();
                 setPlanners(Array.isArray(data.data) ? data.data : []);
             }
-        } catch (err: any) {
+                    const [approvalStatus, setApprovalStatus] = useState<PlannerApproval | null>(null);
             if (err.message.includes("fetch")) {
                 setApiError(true);
                 toast({
@@ -97,6 +98,34 @@ export default function PlannersPage() {
         }
     };
 
+    useEffect(() => {
+        if (!selectedPlanner) {
+            setApprovalStatus(null);
+            return;
+        }
+        setApprovalStatus(null);
+        (async () => {
+            try {
+                const { API_BASE_URL } = await import("@/lib/config");
+                const token = localStorage.getItem("accessToken");
+                const res = await fetch(`${API_BASE_URL}/planner-approval/${selectedPlanner._id}`, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setApprovalStatus(data.data);
+                } else {
+                    setApprovalStatus(null);
+                }
+            } catch {
+                setApprovalStatus(null);
+            }
+        })();
+    }, [selectedPlanner]);
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-[#f1f4f9] via-[#e8ecf4] to-[#dfe5f0] p-4 sm:p-6 lg:p-8">
@@ -111,6 +140,20 @@ export default function PlannersPage() {
     }
 
     if (selectedPlanner) {
+        // Debug log for planner selection
+        console.log("[Planner Detail] selectedPlanner:", selectedPlanner);
+        // Fallback if planner object is malformed
+        if (!selectedPlanner._id || !selectedPlanner.days) {
+            return (
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="bg-red-50 border border-red-200 rounded-2xl p-8 shadow-lg text-center">
+                        <h2 className="text-xl font-bold text-red-700 mb-2">Planner details unavailable</h2>
+                        <p className="text-red-600 mb-4">Could not display planner details. Please try again or contact support.</p>
+                        <Button onClick={() => setSelectedPlanner(null)} className="bg-red-100 text-red-700">Back</Button>
+                    </div>
+                </div>
+            );
+        }
         return (
             <div className="min-h-screen bg-gradient-to-br from-[#f1f4f9] via-[#e8ecf4] to-[#dfe5f0] p-4 sm:p-6 lg:p-8">
                 <div className="max-w-5xl mx-auto space-y-6">
@@ -123,85 +166,134 @@ export default function PlannersPage() {
                     >
                         <div className="flex items-center justify-between">
                             <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <Button
-                                        onClick={() => setSelectedPlanner(null)}
-                                        variant="ghost"
-                                        size="icon"
-                                        className="text-white hover:bg-white/20 rounded-full"
-                                    >
-                                        <ArrowLeft className="h-6 w-6" />
-                                    </Button>
-                                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
-                                        <Calendar className="h-8 w-8 text-white" />
-                                    </div>
-                                    <h1 className="text-2xl md:text-3xl font-bold text-white">
-                                        Planner Details
-                                    </h1>
-                                        {selectedPlanner.approval && (
-                                            <Badge className={`ml-3 ${
-                                                selectedPlanner.approval.status === "approved" ? "bg-green-100 text-green-700" :
-                                                selectedPlanner.approval.status === "disapproved" ? "bg-red-100 text-red-700" :
-                                                "bg-yellow-100 text-yellow-700"
-                                            }`}>
-                                                {selectedPlanner.approval.status.charAt(0).toUpperCase() + selectedPlanner.approval.status.slice(1)}
-                                            </Badge>
-                                        )}
-                                </div>
-                                    {/* Edit/Delete Buttons if not reviewed */}
-                                    {selectedPlanner.approval?.status === "pending" && (
-                                        <div className="flex gap-2 mb-2 ml-14">
+                                <div className="flex flex-col items-center w-full mb-2">
+                                    <div className="flex flex-col items-center w-full gap-2">
+                                        <div className="flex items-center justify-center w-full gap-2">
                                             <Button
-                                                variant="outline"
-                                                className="border-blue-400 text-blue-700 hover:bg-blue-50"
-                                                onClick={() => setEditOpen(true)}
+                                                onClick={() => setSelectedPlanner(null)}
+                                                variant="ghost"
+                                                size="icon"
+                                                className="text-white hover:bg-white/20 rounded-full"
                                             >
-                                                Edit
+                                                <ArrowLeft className="h-6 w-6" />
                                             </Button>
-                                            <Button
-                                                variant="destructive"
-                                                onClick={async () => {
-                                                    if (confirm("Are you sure you want to delete this planner? This cannot be undone.")) {
-                                                        try {
-                                                            const { apiService } = await import("@/lib/api");
-                                                            await apiService.makeRequest(`/planner/${selectedPlanner._id}`, { method: "DELETE" });
-                                                            setSelectedPlanner(null);
-                                                            fetchPlanners();
-                                                        } catch (err) {
-                                                            alert("Failed to delete planner. Please try again.");
+                                            <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
+                                                <Calendar className="h-8 w-8 text-white" />
+                                            </div>
+                                            <h1 className="text-2xl md:text-3xl font-bold text-white">
+                                                Planner Details
+                                            </h1>
+                                            {approvalStatus && (
+                                                <Badge className={`ml-3 ${
+                                                    approvalStatus.status === "approved" ? "bg-green-100 text-green-700" :
+                                                    approvalStatus.status === "disapproved" ? "bg-red-100 text-red-700" :
+                                                    "bg-yellow-100 text-yellow-700"
+                                                }`}>
+                                                    {approvalStatus.status.charAt(0).toUpperCase() + approvalStatus.status.slice(1)}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        {/* Edit/Delete Buttons with contrasting background */}
+                                        <div className="flex justify-center w-full mt-2 z-10">
+                                            <div className="bg-white rounded-xl shadow-lg flex gap-2 px-4 py-2">
+                                                <Button
+                                                    variant="default"
+                                                    className="text-blue-700 bg-white border border-blue-400 hover:bg-blue-50"
+                                                    onClick={() => {
+                                                        if (
+                                                            approvalStatus?.status === "pending" ||
+                                                            approvalStatus?.status === "disapproved"
+                                                        ) {
+                                                            setEditOpen(true);
                                                         }
-                                                    }
-                                                }}
-                                            >
-                                                Delete
-                                            </Button>
+                                                    }}
+                                                    disabled={!(approvalStatus?.status === "pending" || approvalStatus?.status === "disapproved")}
+                                                    style={{ minWidth: 80 }}
+                                                >
+                                                    Edit
+                                                </Button>
+                                                <Button
+                                                    variant="destructive"
+                                                    onClick={async () => {
+                                                        if (
+                                                            approvalStatus?.status === "pending" ||
+                                                            approvalStatus?.status === "disapproved"
+                                                        ) {
+                                                            if (confirm("Are you sure you want to delete this planner? This cannot be undone.")) {
+                                                                try {
+                                                                    const { apiService } = await import("@/lib/api");
+                                                                    await apiService.makeRequest(`/planner/${selectedPlanner._id}`, { method: "DELETE" });
+                                                                    setSelectedPlanner(null);
+                                                                    fetchPlanners();
+                                                                } catch (err) {
+                                                                    alert("Failed to delete planner. Please try again.");
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
+                                                    disabled={!(approvalStatus?.status === "pending" || approvalStatus?.status === "disapproved")}
+                                                    style={{ minWidth: 80 }}
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {/* Approval Progress Details */}
+                                    {approvalStatus && (
+                                        <div className="bg-white/70 rounded-xl p-4 mb-4 mt-2 text-gray-700 w-full">
+                                            <div className="font-semibold mb-1">Approval Progress</div>
+                                            <div>Status: <span className="font-bold capitalize">{approvalStatus.status}</span></div>
+                                            {approvalStatus.supervisor && (
+                                                <div className="mt-2">
+                                                    <div className="font-medium">Supervisor Review</div>
+                                                    <div>Name: {approvalStatus.supervisor.name}</div>
+                                                    <div>Email: {approvalStatus.supervisor.email}</div>
+                                                    {approvalStatus.supervisor.comment && <div>Comment: {approvalStatus.supervisor.comment}</div>}
+                                                    <div>Date: {new Date(approvalStatus.supervisor.date).toLocaleString()}</div>
+                                                </div>
+                                            )}
+                                            {approvalStatus.accountant && (
+                                                <div className="mt-2">
+                                                    <div className="font-medium">Accountant Review</div>
+                                                    <div>Name: {approvalStatus.accountant.name}</div>
+                                                    <div>Email: {approvalStatus.accountant.email}</div>
+                                                    {approvalStatus.accountant.comment && <div>Comment: {approvalStatus.accountant.comment}</div>}
+                                                    <div>Date: {new Date(approvalStatus.accountant.date).toLocaleString()}</div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
-
-                                    {/* Edit Planner Modal */}
-                                    {selectedPlanner && (
-                                        <EditPlannerModal
-                                            open={editOpen}
-                                            onClose={() => setEditOpen(false)}
-                                            planner={selectedPlanner}
-                                            onSave={async (updated) => {
-                                                try {
-                                                    const { apiService } = await import("@/lib/api");
-                                                    await apiService.makeRequest(`/planner/${selectedPlanner._id}`, {
-                                                        method: "PUT",
-                                                        body: JSON.stringify(updated),
-                                                        headers: { "Content-Type": "application/json" },
-                                                    });
-                                                    toast({ title: "Planner updated" });
-                                                    setEditOpen(false);
-                                                    setSelectedPlanner(null);
-                                                    fetchPlanners();
-                                                } catch (err: any) {
-                                                    toast({ title: "Update failed", description: err.message || "Could not update planner.", variant: "destructive" });
-                                                }
-                                            }}
-                                        />
-                                    )}
+                                </div>
+                                {/* Edit Planner Modal */}
+                                {selectedPlanner && (
+                                    <EditPlannerModal
+                                        open={editOpen}
+                                        onClose={() => setEditOpen(false)}
+                                        planner={selectedPlanner}
+                                        title="Edit Weekly Planner"
+                                        description="Update your travel plans, destinations, means, and notes. Make sure all details are accurate before saving."
+                                        size="xl"
+                                        showCloseButton
+                                        style={{ borderRadius: 16, padding: 24, background: '#f9fafb', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}
+                                        onSave={async (updated) => {
+                                            try {
+                                                const { apiService } = await import("@/lib/api");
+                                                await apiService.makeRequest(`/planner/${selectedPlanner._id}`, {
+                                                    method: "PUT",
+                                                    body: JSON.stringify(updated),
+                                                    headers: { "Content-Type": "application/json" },
+                                                });
+                                                toast({ title: "Planner updated" });
+                                                setEditOpen(false);
+                                                setSelectedPlanner(null);
+                                                fetchPlanners();
+                                            } catch (err: any) {
+                                                toast({ title: "Update failed", description: err.message || "Could not update planner.", variant: "destructive" });
+                                            }
+                                        }}
+                                    />
+                                )}
                                 <p className="text-white/90 text-sm md:text-base ml-14">
                                     Week of {new Date(selectedPlanner.weekCreatedAt).toLocaleDateString()}
                                 </p>
@@ -364,7 +456,10 @@ export default function PlannersPage() {
                             <Card
                                 key={planner._id}
                                 className="bg-white rounded-2xl border-0 shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer"
-                                onClick={() => setSelectedPlanner(planner)}
+                                onClick={() => {
+                                    console.log("[Planner Card Click] planner:", planner);
+                                    setSelectedPlanner(planner);
+                                }}
                             >
                                 <CardContent className="p-6">
                                     <div className="flex items-start justify-between">
@@ -374,6 +469,15 @@ export default function PlannersPage() {
                                                 <h3 className="text-lg font-semibold text-gray-800">
                                                     Week of {new Date(planner.weekCreatedAt).toLocaleDateString()}
                                                 </h3>
+                                                {planner.approval && (
+                                                    <Badge className={`ml-3 ${
+                                                        planner.approval.status === "approved" ? "bg-green-100 text-green-700" :
+                                                        planner.approval.status === "disapproved" ? "bg-red-100 text-red-700" :
+                                                        "bg-yellow-100 text-yellow-700"
+                                                    }`}>
+                                                        {planner.approval.status.charAt(0).toUpperCase() + planner.approval.status.slice(1)}
+                                                    </Badge>
+                                                )}
                                             </div>
                                             <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 ml-8">
                                                 <div>
@@ -382,6 +486,15 @@ export default function PlannersPage() {
                                                 <div>
                                                     {planner.days.filter(d => d.place).length} days planned
                                                 </div>
+                                                {planner.approval && (
+                                                    <Badge className={`ml-3 ${
+                                                        planner.approval.status === "approved" ? "bg-green-100 text-green-700" :
+                                                        planner.approval.status === "disapproved" ? "bg-red-100 text-red-700" :
+                                                        "bg-yellow-100 text-yellow-700"
+                                                    }`}>
+                                                        {planner.approval.status.charAt(0).toUpperCase() + planner.approval.status.slice(1)}
+                                                    </Badge>
+                                                )}
                                             </div>
                                         </div>
                                         <Button
