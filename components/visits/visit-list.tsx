@@ -11,6 +11,7 @@ import { apiService } from "@/lib/api"
 import { useToast } from "@/hooks/use-toast"
 import { authService } from "@/lib/auth"
 import CreateEngineeringServiceForm from "@/components/visits/engineer/engineervisitform"
+import { ConvertToLeadModal } from "@/components/visits/convert-to-lead-modal"
 
 interface Visit {
   _id: string
@@ -42,6 +43,8 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
   const [showEngineerForm, setShowEngineerForm] = useState(false)
   const [openFolders, setOpenFolders] = useState<{ [date: string]: boolean }>({})
   const { toast } = useToast()
+  const [convertModalOpen, setConvertModalOpen] = useState(false)
+  const [visitToConvert, setVisitToConvert] = useState<Visit | null>(null)
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -381,6 +384,22 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
                                             <Trash className="h-4 w-4" />
                                             Delete
                                           </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={e => {
+                                              e.stopPropagation();
+                                              setVisitToConvert(visit);
+                                              setConvertModalOpen(true);
+                                            }}
+                                            className="rounded-lg h-8 px-3 flex items-center justify-center gap-1 text-green-700 border-green-400 bg-white hover:bg-green-50 hover:border-green-500 transition font-semibold text-xs sm:text-sm min-w-[90px] sm:min-w-[120px]"
+                                            style={{
+                                              boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+                                              whiteSpace: "nowrap"
+                                            }}
+                                          >
+                                            Track as Lead
+                                          </Button>
                                         </div>
                                       </div>
                                     </Card>
@@ -415,6 +434,41 @@ export function VisitList({ onCreateVisit, onCreateEngineerVisit, onViewVisit, o
           </div>
         </div>
       )}
-    </div>
+    {/* Convert to Lead Modal */}
+    <ConvertToLeadModal
+      open={convertModalOpen}
+      onClose={() => { setConvertModalOpen(false); setVisitToConvert(null); }}
+      onConfirm={async (expectedPurchaseDate) => {
+        if (!visitToConvert) return;
+        try {
+          const token = localStorage.getItem("accessToken");
+          // Use backend port 4500 for local development
+          const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+          const backendUrl = isLocal
+            ? `http://localhost:4500/api/visits/${visitToConvert._id}/convert-to-lead`
+            : `/api/visits/${visitToConvert._id}/convert-to-lead`;
+          // Add createdBy (owner id) to payload
+          const createdBy = currentUser?.id;
+          const res = await fetch(backendUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ expectedPurchaseDate, createdBy })
+          });
+          if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || 'Failed to convert visit.');
+          }
+          toast({ title: 'Visit converted', description: 'Visit converted to lead successfully.' });
+          setConvertModalOpen(false);
+          setVisitToConvert(null);
+        } catch (err: any) {
+          toast({ title: 'Conversion failed', description: err.message || 'Could not convert visit.' });
+        }
+      }}
+    />
+  </div>
   )
 }
