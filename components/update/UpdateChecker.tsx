@@ -19,6 +19,20 @@ const APPLIED_VERSION_KEY = "accord_applied_update_version"
 const DISMISSED_VERSION_KEY = "accord_dismissed_update_version"
 const PENDING_UPDATE_KEY = "accord_pending_update"
 
+// Compare two version strings (returns -1 if a < b, 0 if equal, 1 if a > b)
+function compareVersions(a: string, b: string): number {
+  const partsA = a.split('.').map(Number)
+  const partsB = b.split('.').map(Number)
+  const maxLen = Math.max(partsA.length, partsB.length)
+  for (let i = 0; i < maxLen; i++) {
+    const numA = partsA[i] || 0
+    const numB = partsB[i] || 0
+    if (numA < numB) return -1
+    if (numA > numB) return 1
+  }
+  return 0
+}
+
 // Helper functions
 function getAppliedVersion(): string | null {
   if (typeof window === "undefined") return null
@@ -80,9 +94,18 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
   const hasInitializedRef = useRef(false)
 
   useEffect(() => {
-    // If we already have update state from session, show it
+    // If we already have update state from session, verify it's still valid
     if (update && show) {
-      console.log("📦 Update already loaded from session:", update.latestVersion || update.versionName)
+      const cachedVersion = update.latestVersion || update.versionName
+      // If the current app version matches or exceeds the cached update version, clear it
+      if (cachedVersion && compareVersions(APP_VERSION, cachedVersion) >= 0) {
+        console.log(`✅ Current version ${APP_VERSION} already matches or exceeds cached update ${cachedVersion}, clearing cache`)
+        setPendingUpdate(null)
+        setUpdate(null)
+        setShow(false)
+        return
+      }
+      console.log("📦 Update already loaded from session:", cachedVersion)
       hasInitializedRef.current = true
       return
     }
@@ -137,9 +160,11 @@ export default function UpdateChecker({ role = "sales", platform = "android" }: 
         const updateInfo = data.update || data
         const latestVersion = updateInfo.latestVersion || updateInfo.versionName
 
-        // Skip if current version matches latest version (no update needed)
-        if (currentVersion === latestVersion) {
-          console.log(`✅ Already on latest version ${currentVersion}, no update needed`)
+        // Skip if current version is >= latest version (no update needed)
+        if (compareVersions(currentVersion, latestVersion) >= 0) {
+          console.log(`✅ Already on latest version ${currentVersion} (latest: ${latestVersion}), no update needed`)
+          // Clear any cached update since we're up to date
+          setPendingUpdate(null)
           return
         }
 

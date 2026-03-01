@@ -35,6 +35,13 @@ interface Planner {
     };
 }
 
+interface PlannerApproval {
+    status: "pending" | "approved" | "disapproved";
+    reviewer?: string;
+    reviewedAt?: string;
+    note?: string;
+}
+
 export default function PlannersPage() {
     const [planners, setPlanners] = useState<Planner[]>([]);
     const [loading, setLoading] = useState(true);
@@ -77,7 +84,7 @@ export default function PlannersPage() {
                 const data = await res.json();
                 setPlanners(Array.isArray(data.data) ? data.data : []);
             }
-            // ...existing code...
+        } catch (err: any) {
             if (err.message.includes("fetch")) {
                 setApiError(true);
                 toast({
