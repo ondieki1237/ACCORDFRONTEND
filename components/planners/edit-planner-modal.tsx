@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, MapPin, Car, DollarSign, Users, ChevronDown, ChevronUp } from "lucide-react";
+import { Calendar, MapPin, Car, DollarSign, Users, ChevronDown, ChevronUp, X } from "lucide-react";
 
 interface DayPlan {
   day: string;
@@ -51,31 +51,28 @@ export function EditPlannerModal({ open, onClose, planner, onSave }: PlannerEdit
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90vh] p-0 overflow-hidden [&>button]:hidden">
         {/* Header with Actions */}
-        <DialogHeader className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] p-4 sm:p-6">
-          <div className="flex items-center justify-between">
+        <DialogHeader className="bg-gradient-to-r from-[#00aeef] to-[#0096d6] p-4 sm:p-6 relative">
+          {/* Custom X close button - top right */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          >
+            <X className="h-5 w-5 text-white" />
+          </button>
+          <div className="flex items-center justify-between pr-8 gap-6">
             <DialogTitle className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
               <Calendar className="h-6 w-6" />
               Edit Planner
             </DialogTitle>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={onClose} 
-                disabled={saving}
-                className="rounded-xl px-4 bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white"
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSave} 
-                disabled={saving}
-                className="rounded-xl px-4 bg-white text-[#00aeef] hover:bg-white/90 font-semibold"
-              >
-                {saving ? "Saving..." : "Save"}
-              </Button>
-            </div>
+            <Button 
+              onClick={handleSave} 
+              disabled={saving}
+              className="rounded-xl px-6 bg-white text-[#00aeef] hover:bg-white/90 font-semibold"
+            >
+              {saving ? "Saving..." : "Save"}
+            </Button>
           </div>
           <p className="text-white/80 text-sm mt-1">Update your weekly travel planner</p>
         </DialogHeader>
