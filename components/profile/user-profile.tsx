@@ -9,6 +9,7 @@ import { authService, type User } from "@/lib/auth"
 import { useToast } from "@/hooks/use-toast"
 import { UserIcon, Mail, MapPin, Building, Shield, LogOut, TrendingUp, User as UserIconLucide } from "lucide-react"
 import { Preferences } from "@capacitor/preferences"
+import { APP_VERSION } from "@/lib/config"
 
 export function UserProfile() {
   const [user, setUser] = useState<User | null>(null)
@@ -16,7 +17,6 @@ export function UserProfile() {
   const [salesTarget, setSalesTarget] = useState<number | null>(null)
   const [salesLoading, setSalesLoading] = useState(true)
   const { toast } = useToast()
-
   useEffect(() => {
     fetchUserProfile()
     fetchSalesTarget()
@@ -34,7 +34,6 @@ export function UserProfile() {
         description: "Failed to load profile data",
         variant: "destructive",
       })
-      // Fallback to cached user data
       const cachedUser = authService.getCurrentUserSync()
       if (cachedUser) {
         setUser(cachedUser)
@@ -44,7 +43,6 @@ export function UserProfile() {
     }
   }
 
-  // Fetch sales target from API
   const fetchSalesTarget = async () => {
     try {
       setSalesLoading(true)
@@ -100,7 +98,6 @@ export function UserProfile() {
     }
   }
 
-  // Neumorphism utility classes
   const neumorphicCard =
     "rounded-2xl bg-gray-50 shadow-[8px_8px_16px_#cfd4db,-8px_-8px_16px_#ffffff]"
   const neumorphicInset =
@@ -176,6 +173,26 @@ export function UserProfile() {
             </div>
           </div>
         </div>
+
+        {/* App Version Section */}
+        <Card 
+          className="bg-white rounded-3xl border-0 shadow-xl overflow-hidden"
+          style={{ 
+            boxShadow: "8px 8px 16px rgba(0, 174, 239, 0.1), -8px -8px 16px rgba(255, 255, 255, 0.9)"
+          }}
+        >
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-[#00aeef] text-xl font-bold">
+              <Shield className="w-6 h-6" />
+              Application Version
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="bg-gradient-to-r from-[#00aeef]/5 to-[#0096d6]/5 rounded-2xl p-4 flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+              <span className="text-sm text-gray-800 font-semibold">Current Version: {APP_VERSION}</span>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Sales Target Section */}
         <Card 

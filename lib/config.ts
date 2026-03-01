@@ -21,6 +21,9 @@ export const UPDATE_CHECK_URL = isDevelopment
   ? `${DEV_API_URL}/app-updates/check`
   : 'https://app.codewithseth.co.ke/api/app-updates/check'
 
+// Current app version (single source of truth)
+export const APP_VERSION = '1.2.6'
+
 // APK download URL (always production - no local APK)
 export const APK_DOWNLOAD_URL = 'https://app.codewithseth.co.ke/downloads/app-debug.apk'
 

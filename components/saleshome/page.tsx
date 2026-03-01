@@ -479,7 +479,7 @@ export default function SalesDashboard() {
                     <DialogTrigger asChild>
                       <Button className="flex-1 bg-gradient-to-r from-[#00aeef] to-[#0096d6] hover:from-[#0096d6] hover:to-[#00aeef] text-white font-semibold shadow-lg rounded-xl px-6 py-6 transition-all duration-300 hover:scale-105">
                         <FileText className="w-5 h-5 mr-2" />
-                        Create New Report
+                        Weekly Report
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">

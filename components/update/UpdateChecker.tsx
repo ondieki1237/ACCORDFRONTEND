@@ -12,10 +12,9 @@ type UpdateInfo = {
   downloadUrl?: string
 }
 
-import { UPDATE_CHECK_URL, APK_DOWNLOAD_URL } from "@/lib/config"
+import { UPDATE_CHECK_URL, APK_DOWNLOAD_URL, APP_VERSION } from "@/lib/config"
 
 const CHECK_ENDPOINT = UPDATE_CHECK_URL
-const APP_VERSION = "1.2.5" // Current app version
 const APPLIED_VERSION_KEY = "accord_applied_update_version"
 const DISMISSED_VERSION_KEY = "accord_dismissed_update_version"
 const PENDING_UPDATE_KEY = "accord_pending_update"
